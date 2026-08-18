@@ -37,8 +37,11 @@ export default function FluxoApoiador({ candidato }: Props) {
   const [ajuste, setAjuste] = useState<FotoAjuste>(AJUSTE_INICIAL);
   const [formato, setFormato] = useState<Formato>("feed");
   const [erro, setErro] = useState<string | null>(null);
-  // Data URL da arte final, exibida no modal de salvar
-  const [resultado, setResultado] = useState<string | null>(null);
+  // Arte final gerada, exibida no modal de salvar
+  const [resultado, setResultado] = useState<{
+    dataUrl: string;
+    arquivo: File;
+  } | null>(null);
   const [processando, setProcessando] = useState(false);
   const [gerando, setGerando] = useState(false);
   const [fontesProntas, setFontesProntas] = useState(false);
@@ -118,6 +121,15 @@ export default function FluxoApoiador({ candidato }: Props) {
     return canvas;
   }
 
+  // Abre o modal com a arte pronta: o botão "Salvar na galeria" usa o menu
+  // nativo (Web Share), único caminho que grava na galeria de fotos — o
+  // download comum vai para a pasta Arquivos/Downloads.
+  async function abrirResultado(canvas: HTMLCanvasElement) {
+    const blob = await canvasParaBlob(canvas);
+    const arquivo = new File([blob], nomeArquivo, { type: "image/jpeg" });
+    setResultado({ dataUrl: canvas.toDataURL("image/jpeg", 0.92), arquivo });
+  }
+
   async function baixar() {
     if (gerando) return;
     setGerando(true);
@@ -126,14 +138,20 @@ export default function FluxoApoiador({ candidato }: Props) {
     try {
       const canvas = await renderizarFinal();
       if (!canvas) return;
-      // Mostra a arte num modal com link de download direto: downloads
-      // automáticos são bloqueados em navegadores de apps (WhatsApp,
-      // Instagram) e no Safari após operações assíncronas.
-      setResultado(canvas.toDataURL("image/jpeg", 0.92));
+      await abrirResultado(canvas);
     } catch {
       setErro("Algo deu errado ao gerar a imagem. Tente de novo.");
     } finally {
       setGerando(false);
+    }
+  }
+
+  async function salvarNaGaleria() {
+    if (!resultado) return;
+    try {
+      await navigator.share({ files: [resultado.arquivo] });
+    } catch {
+      // Cancelado ou bloqueado — segurar a imagem continua funcionando.
     }
   }
 
@@ -170,7 +188,7 @@ export default function FluxoApoiador({ candidato }: Props) {
 
       if (!compartilhou) {
         // Sem Web Share (ou bloqueado): abre o modal para salvar a imagem.
-        setResultado(canvas.toDataURL("image/jpeg", 0.92));
+        await abrirResultado(canvas);
       }
     } catch {
       setErro("Algo deu errado ao gerar a imagem. Tente de novo.");
@@ -413,31 +431,53 @@ export default function FluxoApoiador({ candidato }: Props) {
             </h3>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={resultado}
+              src={resultado.dataUrl}
               alt="Arte final com a sua foto"
-              className={`mx-auto mt-3 max-h-[50dvh] w-auto ${
+              className={`mx-auto mt-3 max-h-[45dvh] w-auto ${
                 formato === "perfil" ? "rounded-full" : "rounded-lg"
               }`}
             />
-            <p className="mt-3 text-sm text-neutral-600">
-              Toque no botão abaixo para salvar. Se não funcionar, segure o
-              dedo na imagem e escolha “Salvar imagem”.
-            </p>
+            {typeof navigator !== "undefined" &&
+            typeof navigator.share === "function" &&
+            typeof navigator.canShare === "function" &&
+            navigator.canShare({ files: [resultado.arquivo] }) ? (
+              <>
+                <button
+                  type="button"
+                  onClick={salvarNaGaleria}
+                  className="mt-4 block min-h-14 w-full rounded-xl px-6 py-4 text-lg font-bold"
+                  style={{
+                    backgroundColor: candidato.cor_primaria,
+                    color: corHeaderTexto,
+                  }}
+                >
+                  Salvar na galeria
+                </button>
+                <p className="mt-2 text-sm text-neutral-600">
+                  Toque no botão e escolha <strong>“Salvar imagem”</strong>{" "}
+                  para guardar na galeria de fotos.
+                </p>
+              </>
+            ) : (
+              <p className="mt-3 text-sm font-semibold text-neutral-700">
+                Segure o dedo na imagem e toque em “Salvar imagem” para
+                guardar na galeria de fotos.
+              </p>
+            )}
             <a
-              href={resultado}
+              href={resultado.dataUrl}
               download={nomeArquivo}
-              className="mt-4 block min-h-14 rounded-xl px-6 py-4 text-lg font-bold"
-              style={{
-                backgroundColor: candidato.cor_primaria,
-                color: corHeaderTexto,
-              }}
+              className="mt-3 block min-h-12 rounded-xl border-2 border-neutral-300 px-6 py-3 font-semibold text-neutral-700"
             >
-              Salvar imagem
+              Baixar arquivo
             </a>
+            <p className="mt-1 text-xs text-neutral-500">
+              O arquivo baixado fica na pasta Downloads/Arquivos do celular.
+            </p>
             <button
               type="button"
               onClick={() => setResultado(null)}
-              className="mt-2 min-h-12 w-full rounded-xl border-2 border-neutral-300 font-semibold text-neutral-700"
+              className="mt-2 min-h-12 w-full rounded-xl font-semibold text-neutral-500"
             >
               Fechar
             </button>
