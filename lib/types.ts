@@ -1,0 +1,25 @@
+export interface Candidato {
+  id: string;
+  user_id: string;
+  slug: string;
+  nome: string;
+  numero: string;
+  cargo: string;
+  partido: string | null;
+  slogan: string | null;
+  cor_primaria: string;
+  cor_secundaria: string;
+  logo_url: string | null;
+  templates_ativos: string[];
+  ativo: boolean;
+  created_at: string;
+}
+
+export interface Geracao {
+  id: string;
+  candidato_id: string;
+  template: string;
+  formato: "feed" | "story";
+  acao: "download" | "share";
+  created_at: string;
+}

@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-display: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --font-text: "Archivo", system-ui, -apple-system, sans-serif;
+}
+
+html {
+  font-family: var(--font-text);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  min-height: 100dvh;
+}
+
+/* Foco de teclado visível em todos os controles */
+:focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.painel-escuro :focus-visible {
+  outline-color: #93c5fd;
+}
+
+/* Respeita prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Esconde a barra de rolagem da galeria de miniaturas sem matar o scroll */
+.rolagem-sem-barra {
+  scrollbar-width: none;
+}
+.rolagem-sem-barra::-webkit-scrollbar {
+  display: none;
+}
