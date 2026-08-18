@@ -21,7 +21,7 @@ export const template: Template = {
     if (formato === "perfil") {
       // Versão circular: mesma pegada da Faixa, mas o bloco de cor sobe
       // com uma curva suave no centro, em vez da barra reta.
-      const alturaBloco = 340 * u;
+      const alturaBloco = 380 * u;
       const topoBloco = H - alturaBloco;
       const curva = 95 * u;
 
@@ -47,7 +47,7 @@ export const template: Template = {
 
       const corTexto = corDeTexto(candidato.corPrimaria);
       const nome = candidato.nome.toUpperCase();
-      const yNome = H - 225 * u;
+      const yNome = H - 280 * u;
       ctx.save();
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
@@ -64,10 +64,11 @@ export const template: Template = {
 
       const digitos = candidato.numero.replace(/\D/g, "");
       const n = Math.max(digitos.length, 1);
-      const yTeclas = H - 105 * u;
+      // Teclas numa faixa mais alta do círculo (corda mais larga = número maior)
+      const yTeclas = H - 165 * u;
       const tecla = Math.min(
-        80 * u,
-        (cordaCirculo(W, yTeclas + 40 * u) - 70 * u) / (n + (n - 1) * 0.12)
+        94 * u,
+        (cordaCirculo(W, yTeclas + 55 * u) - 60 * u) / (n + (n - 1) * 0.12)
       );
       drawTeclasUrna(
         ctx,
@@ -78,6 +79,25 @@ export const template: Template = {
         candidato.corSecundaria,
         corDeTexto(candidato.corSecundaria)
       );
+
+      // Cargo pequeno na base
+      const linhaCargo = [candidato.cargo.toUpperCase(), candidato.partido]
+        .filter(Boolean)
+        .join(" · ");
+      ctx.save();
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = rgba(corTexto, 0.9);
+      const yCargo = H - 58 * u;
+      ajustarFonte(
+        ctx,
+        linhaCargo,
+        (px) => fontTexto(px, 600),
+        27 * u,
+        cordaCirculo(W, yCargo) - 50 * u
+      );
+      ctx.fillText(linhaCargo, W / 2, yCargo);
+      ctx.restore();
 
       if (candidato.logo) {
         drawLogo(ctx, candidato.logo, W / 2, 60 * u, 100 * u, "center");

@@ -23,7 +23,7 @@ export const template: Template = {
       // nome grande, "VOTE" e o número numa pill de destaque.
       drawFotoCover(ctx, foto, 0, 0, W, H);
 
-      const alturaGrad = 640 * u;
+      const alturaGrad = 680 * u;
       const grad = ctx.createLinearGradient(0, H - alturaGrad, 0, H);
       grad.addColorStop(0, rgba(candidato.corPrimaria, 0));
       grad.addColorStop(0.5, rgba(candidato.corPrimaria, 0.78));
@@ -39,6 +39,21 @@ export const template: Template = {
       ctx.save();
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
+
+      // Cargo pequeno acima do nome
+      const linhaCargo = [candidato.cargo.toUpperCase(), candidato.partido]
+        .filter(Boolean)
+        .join(" · ");
+      ctx.fillStyle = rgba(corTexto, 0.9);
+      ajustarFonte(
+        ctx,
+        linhaCargo,
+        (px) => fontTexto(px, 600),
+        28 * u,
+        cordaCirculo(W, H - 400 * u) - 120 * u
+      );
+      ctx.fillText(linhaCargo, cx, H - 400 * u);
+
       ctx.fillStyle = corTexto;
       ajustarFonte(
         ctx,

@@ -21,7 +21,7 @@ export const template: Template = {
     if (formato === "perfil") {
       // Versão circular: barra vira um segmento na base do círculo,
       // com nome e teclas centralizados na área segura do corte redondo.
-      const alturaBarra = 320 * u;
+      const alturaBarra = 360 * u;
       const topoBarra = H - alturaBarra;
       drawFotoCover(ctx, foto, 0, 0, W, topoBarra);
       ctx.fillStyle = candidato.corPrimaria;
@@ -31,7 +31,7 @@ export const template: Template = {
 
       const corTexto = corDeTexto(candidato.corPrimaria);
       const nome = candidato.nome.toUpperCase();
-      const yNome = topoBarra + 100 * u;
+      const yNome = topoBarra + 80 * u;
       ctx.save();
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
@@ -40,7 +40,7 @@ export const template: Template = {
         ctx,
         nome,
         (px) => fontDisplay(px, 800),
-        84 * u,
+        80 * u,
         cordaCirculo(W, yNome) - 90 * u
       );
       ctx.fillText(nome, W / 2, yNome);
@@ -48,10 +48,11 @@ export const template: Template = {
 
       const digitos = candidato.numero.replace(/\D/g, "");
       const n = Math.max(digitos.length, 1);
-      const yTeclas = topoBarra + 225 * u;
+      // Teclas numa faixa mais alta do círculo (corda mais larga = número maior)
+      const yTeclas = topoBarra + 190 * u;
       const tecla = Math.min(
-        84 * u,
-        (cordaCirculo(W, yTeclas) - 90 * u) / (n + (n - 1) * 0.12)
+        94 * u,
+        (cordaCirculo(W, yTeclas + 55 * u) - 60 * u) / (n + (n - 1) * 0.12)
       );
       drawTeclasUrna(
         ctx,
@@ -62,6 +63,25 @@ export const template: Template = {
         candidato.corSecundaria,
         corDeTexto(candidato.corSecundaria)
       );
+
+      // Cargo pequeno na base
+      const linhaCargo = [candidato.cargo.toUpperCase(), candidato.partido]
+        .filter(Boolean)
+        .join(" · ");
+      ctx.save();
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = rgba(corTexto, 0.9);
+      const yCargo = topoBarra + 300 * u;
+      ajustarFonte(
+        ctx,
+        linhaCargo,
+        (px) => fontTexto(px, 600),
+        27 * u,
+        cordaCirculo(W, yCargo) - 50 * u
+      );
+      ctx.fillText(linhaCargo, W / 2, yCargo);
+      ctx.restore();
 
       if (candidato.logo) {
         drawLogo(ctx, candidato.logo, W / 2, 60 * u, 100 * u, "center");

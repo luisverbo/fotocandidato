@@ -34,8 +34,11 @@ export const template: Template = {
       ctx.strokeStyle = candidato.corSecundaria;
       ctx.stroke();
 
-      // Etiqueta no topo (slogan; sem slogan, cargo)
-      const textoEtiqueta = (candidato.slogan || candidato.cargo).toUpperCase();
+      // Etiqueta no topo: no perfil o cargo sempre aparece
+      const textoEtiqueta = [candidato.cargo, candidato.partido]
+        .filter(Boolean)
+        .join(" · ")
+        .toUpperCase();
       const yEtiqueta = 130 * u;
       ctx.save();
       ctx.textAlign = "center";

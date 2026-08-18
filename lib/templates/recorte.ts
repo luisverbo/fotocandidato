@@ -83,10 +83,10 @@ export const template: Template = {
 
       const digitos = candidato.numero.replace(/\D/g, "");
       const n = Math.max(digitos.length, 1);
-      const yTeclas = H - 105 * u;
+      const yTeclas = H - 118 * u;
       const tecla = Math.min(
-        78 * u,
-        (cordaCirculo(W, yTeclas + 40 * u) - 60 * u) / (n + (n - 1) * 0.12)
+        86 * u,
+        (cordaCirculo(W, yTeclas + 50 * u) - 60 * u) / (n + (n - 1) * 0.12)
       );
       drawTeclasUrna(
         ctx,
