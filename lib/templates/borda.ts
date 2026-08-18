@@ -24,12 +24,12 @@ export const template: Template = {
 
       const r = W / 2;
       ctx.beginPath();
-      ctx.arc(r, r, r - 45 * u, 0, Math.PI * 2);
-      ctx.lineWidth = 90 * u;
+      ctx.arc(r, r, r - 38 * u, 0, Math.PI * 2);
+      ctx.lineWidth = 76 * u;
       ctx.strokeStyle = candidato.corPrimaria;
       ctx.stroke();
       ctx.beginPath();
-      ctx.arc(r, r, r - 100 * u, 0, Math.PI * 2);
+      ctx.arc(r, r, r - 86 * u, 0, Math.PI * 2);
       ctx.lineWidth = 8 * u;
       ctx.strokeStyle = candidato.corSecundaria;
       ctx.stroke();
@@ -66,8 +66,8 @@ export const template: Template = {
 
       // Placa na base com nome e número
       const corTexto = corDeTexto(candidato.corPrimaria);
-      const alturaPlaca = 180 * u;
-      const yPlaca = H - 205 * u;
+      const alturaPlaca = 190 * u;
+      const yPlaca = H - 210 * u;
       const larguraPlaca = Math.min(
         620 * u,
         cordaCirculo(W, yPlaca + alturaPlaca / 2) - 40 * u
@@ -79,7 +79,7 @@ export const template: Template = {
         yPlaca - alturaPlaca / 2,
         larguraPlaca,
         alturaPlaca,
-        28 * u
+        alturaPlaca / 2
       );
       ctx.fillStyle = candidato.corPrimaria;
       ctx.fill();
@@ -95,18 +95,18 @@ export const template: Template = {
         ctx,
         nome,
         (px) => fontDisplay(px, 700),
-        46 * u,
-        larguraPlaca - 60 * u
+        48 * u,
+        larguraPlaca - 90 * u
       );
-      ctx.fillText(nome, W / 2, yPlaca - 40 * u);
+      ctx.fillText(nome, W / 2, yPlaca - 44 * u);
       ajustarFonte(
         ctx,
         candidato.numero,
         (px) => fontDisplay(px, 800),
-        92 * u,
-        larguraPlaca - 60 * u
+        98 * u,
+        larguraPlaca - 90 * u
       );
-      ctx.fillText(candidato.numero, W / 2, yPlaca + 42 * u);
+      ctx.fillText(candidato.numero, W / 2, yPlaca + 46 * u);
       ctx.restore();
 
       if (candidato.logo) {

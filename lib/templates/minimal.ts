@@ -18,35 +18,35 @@ export const template: Template = {
   suporta: ["feed", "story", "perfil"],
   draw(ctx, { W, H, u, foto, candidato, formato }) {
     if (formato === "perfil") {
-      // Versão circular: badge centralizado na base do círculo.
+      // Versão circular: badge maior, centralizado na base do círculo.
       drawFotoCover(ctx, foto, 0, 0, W, H);
 
-      const alturaBadge = 120 * u;
-      const respiro = 26 * u;
+      const alturaBadge = 165 * u;
+      const respiro = 32 * u;
       const nome = candidato.nome.toUpperCase();
       const linhaCargo = candidato.cargo.toUpperCase();
-      ctx.font = fontTexto(32 * u, 700);
-      const larguraNome = Math.min(ctx.measureText(nome).width, 360 * u);
-      ctx.font = fontTexto(22 * u, 500);
-      const larguraCargo = Math.min(ctx.measureText(linhaCargo).width, 360 * u);
+      ctx.font = fontTexto(44 * u, 700);
+      const larguraNome = Math.min(ctx.measureText(nome).width, 340 * u);
+      ctx.font = fontTexto(28 * u, 500);
+      const larguraCargo = Math.min(ctx.measureText(linhaCargo).width, 340 * u);
       const larguraTexto = Math.max(larguraNome, larguraCargo);
 
       const ladoNumero = alturaBadge;
       const larguraBadge = ladoNumero + respiro + larguraTexto + respiro;
       const x = W / 2 - larguraBadge / 2;
-      const y = 850 * u;
+      const y = 828 * u;
 
       ctx.save();
       ctx.shadowColor = "rgba(0, 0, 0, 0.3)";
       ctx.shadowBlur = 24 * u;
       ctx.shadowOffsetY = 8 * u;
-      pathRoundRect(ctx, x, y, larguraBadge, alturaBadge, 22 * u);
+      pathRoundRect(ctx, x, y, larguraBadge, alturaBadge, 30 * u);
       ctx.fillStyle = "#ffffff";
       ctx.fill();
       ctx.restore();
 
       ctx.save();
-      pathRoundRect(ctx, x, y, ladoNumero, alturaBadge, 22 * u);
+      pathRoundRect(ctx, x, y, ladoNumero, alturaBadge, 30 * u);
       ctx.clip();
       ctx.fillStyle = candidato.corPrimaria;
       ctx.fillRect(x, y, ladoNumero, alturaBadge);
@@ -69,14 +69,14 @@ export const template: Template = {
       ctx.textAlign = "left";
       ctx.textBaseline = "middle";
       ctx.fillStyle = "#161616";
-      ajustarFonte(ctx, nome, (px) => fontTexto(px, 700), 32 * u, larguraTexto);
+      ajustarFonte(ctx, nome, (px) => fontTexto(px, 700), 44 * u, larguraTexto);
       ctx.fillText(nome, x + ladoNumero + respiro, y + alturaBadge * 0.36);
       ctx.fillStyle = rgba("#161616", 0.65);
       ajustarFonte(
         ctx,
         linhaCargo,
         (px) => fontTexto(px, 500),
-        22 * u,
+        28 * u,
         larguraTexto
       );
       ctx.fillText(linhaCargo, x + ladoNumero + respiro, y + alturaBadge * 0.7);

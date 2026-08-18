@@ -5,6 +5,7 @@ import {
   cordaCirculo,
   drawFotoCover,
   drawLogo,
+  drawTeclasUrna,
   fontDisplay,
   fontTexto,
   rgba,
@@ -18,57 +19,35 @@ export const template: Template = {
   suporta: ["feed", "story", "perfil"],
   draw(ctx, { W, H, u, foto, candidato, formato }) {
     if (formato === "perfil") {
-      // Versão circular: corte um pouco mais alto e textos centralizados
-      // dentro da área segura do corte redondo.
-      const corteEsq = H - 370 * u;
-      const queda = 150 * u;
-      const corteDir = corteEsq - queda;
+      // Versão circular: mesma pegada da Faixa, mas o bloco de cor sobe
+      // com uma curva suave no centro, em vez da barra reta.
+      const alturaBloco = 340 * u;
+      const topoBloco = H - alturaBloco;
+      const curva = 95 * u;
 
       drawFotoCover(ctx, foto, 0, 0, W, H);
 
+      // Bloco com topo curvo
       ctx.beginPath();
-      ctx.moveTo(0, corteEsq);
-      ctx.lineTo(W, corteDir);
+      ctx.moveTo(0, topoBloco + curva);
+      ctx.quadraticCurveTo(W / 2, topoBloco - curva, W, topoBloco + curva);
       ctx.lineTo(W, H);
       ctx.lineTo(0, H);
       ctx.closePath();
       ctx.fillStyle = candidato.corPrimaria;
       ctx.fill();
 
-      const espessura = 22 * u;
-      const folga = 26 * u;
+      // Filete de destaque acompanhando a curva
       ctx.beginPath();
-      ctx.moveTo(0, corteEsq - folga - espessura);
-      ctx.lineTo(W, corteDir - folga - espessura);
-      ctx.lineTo(W, corteDir - folga);
-      ctx.lineTo(0, corteEsq - folga);
-      ctx.closePath();
-      ctx.fillStyle = candidato.corSecundaria;
-      ctx.fill();
+      ctx.moveTo(0, topoBloco + curva);
+      ctx.quadraticCurveTo(W / 2, topoBloco - curva, W, topoBloco + curva);
+      ctx.lineWidth = 14 * u;
+      ctx.strokeStyle = candidato.corSecundaria;
+      ctx.stroke();
 
       const corTexto = corDeTexto(candidato.corPrimaria);
-      const angulo = Math.atan2(corteDir - corteEsq, W);
-      const meio = (corteEsq + corteDir) / 2;
-      const cy = meio + (H - meio) * 0.34;
-
-      ctx.save();
-      ctx.translate(W / 2, cy);
-      ctx.rotate(angulo);
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillStyle = corTexto;
-      ajustarFonte(
-        ctx,
-        candidato.numero,
-        (px) => fontDisplay(px, 800),
-        150 * u,
-        cordaCirculo(W, cy) - 140 * u
-      );
-      ctx.fillText(candidato.numero, 0, 0);
-      ctx.restore();
-
       const nome = candidato.nome.toUpperCase();
-      const yNome = H - 130 * u;
+      const yNome = H - 225 * u;
       ctx.save();
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
@@ -76,12 +55,29 @@ export const template: Template = {
       ajustarFonte(
         ctx,
         nome,
-        (px) => fontDisplay(px, 700),
-        54 * u,
-        cordaCirculo(W, yNome) - 80 * u
+        (px) => fontDisplay(px, 800),
+        80 * u,
+        cordaCirculo(W, yNome) - 90 * u
       );
       ctx.fillText(nome, W / 2, yNome);
       ctx.restore();
+
+      const digitos = candidato.numero.replace(/\D/g, "");
+      const n = Math.max(digitos.length, 1);
+      const yTeclas = H - 105 * u;
+      const tecla = Math.min(
+        80 * u,
+        (cordaCirculo(W, yTeclas + 40 * u) - 70 * u) / (n + (n - 1) * 0.12)
+      );
+      drawTeclasUrna(
+        ctx,
+        candidato.numero,
+        W / 2,
+        yTeclas,
+        tecla,
+        candidato.corSecundaria,
+        corDeTexto(candidato.corSecundaria)
+      );
 
       if (candidato.logo) {
         drawLogo(ctx, candidato.logo, W / 2, 60 * u, 100 * u, "center");

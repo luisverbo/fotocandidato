@@ -36,31 +36,24 @@ export const template: Template = {
   suporta: ["feed", "story", "perfil"],
   draw(ctx, { W, H, u, foto, candidato, formato }) {
     if (formato === "perfil") {
-      // Versão circular: círculo de foto menor, nome no topo e teclas na
-      // base, tudo dentro da área segura do corte redondo.
+      // Versão circular: foto em tela cheia com "tampas" de cor no topo e
+      // na base do círculo — nome em cima, teclas de urna embaixo.
+      drawFotoCover(ctx, foto, 0, 0, W, H);
+
+      const capTopo = 215 * u;
+      const capBase = H - 215 * u;
       ctx.fillStyle = candidato.corPrimaria;
-      ctx.fillRect(0, 0, W, H);
-
-      const raio = 300 * u;
-      const cx = W / 2;
-      const cy = 530 * u;
-
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(cx, cy, raio, 0, Math.PI * 2);
-      ctx.clip();
-      drawFotoCover(ctx, foto, cx - raio, cy - raio, raio * 2, raio * 2);
-      ctx.restore();
-
-      ctx.beginPath();
-      ctx.arc(cx, cy, raio, 0, Math.PI * 2);
-      ctx.lineWidth = 14 * u;
-      ctx.strokeStyle = candidato.corSecundaria;
-      ctx.stroke();
+      ctx.fillRect(0, 0, W, capTopo);
+      ctx.fillRect(0, capBase, W, H - capBase);
+      ctx.fillStyle = candidato.corSecundaria;
+      ctx.fillRect(0, capTopo, W, 10 * u);
+      ctx.fillRect(0, capBase - 10 * u, W, 10 * u);
 
       const corTexto = corDeTexto(candidato.corPrimaria);
+      const cx = W / 2;
+
       const nome = candidato.nome.toUpperCase();
-      const yNome = 150 * u;
+      const yNome = 100 * u;
       ctx.save();
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
@@ -69,17 +62,30 @@ export const template: Template = {
         ctx,
         nome,
         (px) => fontDisplay(px, 800),
-        72 * u,
-        cordaCirculo(W, yNome) - 80 * u
+        70 * u,
+        cordaCirculo(W, yNome) - 90 * u
       );
       ctx.fillText(nome, cx, yNome);
+
+      const linhaCargo = [candidato.cargo.toUpperCase(), candidato.partido]
+        .filter(Boolean)
+        .join(" · ");
+      ctx.fillStyle = rgba(corTexto, 0.85);
+      ajustarFonte(
+        ctx,
+        linhaCargo,
+        (px) => fontTexto(px, 600),
+        28 * u,
+        cordaCirculo(W, 168 * u) - 90 * u
+      );
+      ctx.fillText(linhaCargo, cx, 168 * u);
       ctx.restore();
 
       const digitos = candidato.numero.replace(/\D/g, "");
       const n = Math.max(digitos.length, 1);
-      const yTeclas = 935 * u;
+      const yTeclas = H - 105 * u;
       const tecla = Math.min(
-        80 * u,
+        78 * u,
         (cordaCirculo(W, yTeclas + 40 * u) - 60 * u) / (n + (n - 1) * 0.12)
       );
       drawTeclasUrna(
