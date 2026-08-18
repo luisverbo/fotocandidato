@@ -9,6 +9,7 @@ import type { Candidato } from "@/lib/types";
 export const DIMENSOES: Record<Formato, { W: number; H: number }> = {
   feed: { W: 1080, H: 1080 },
   story: { W: 1080, H: 1920 },
+  perfil: { W: 1080, H: 1080 },
 };
 
 export function candidatoParaArte(

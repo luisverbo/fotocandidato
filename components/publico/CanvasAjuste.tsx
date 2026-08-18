@@ -109,13 +109,26 @@ export default function CanvasAjuste({
         onPointerMove={aoMover}
         onPointerUp={aoSoltar}
         onPointerCancel={aoSoltar}
-        className="mx-auto block w-full cursor-move rounded-xl shadow-md"
+        className={`mx-auto block w-full cursor-move shadow-md ${
+          formato === "perfil" ? "rounded-full" : "rounded-xl"
+        }`}
         style={{
           aspectRatio: `${W} / ${H}`,
-          maxWidth: formato === "story" ? "300px" : "420px",
+          maxWidth:
+            formato === "story"
+              ? "300px"
+              : formato === "perfil"
+                ? "360px"
+                : "420px",
           touchAction: "none",
         }}
       />
+      {formato === "perfil" && (
+        <p className="mx-auto mt-3 max-w-[420px] text-center text-sm text-neutral-500">
+          É assim que sua foto de perfil vai aparecer. A imagem é salva
+          quadrada — a rede social faz o corte redondo.
+        </p>
+      )}
       <label className="mx-auto mt-4 flex w-full max-w-[420px] items-center gap-3">
         <span className="text-sm font-semibold text-neutral-700">Zoom</span>
         <input

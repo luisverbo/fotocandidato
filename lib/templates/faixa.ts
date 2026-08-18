@@ -2,6 +2,7 @@ import type { Template } from "./types";
 import {
   ajustarFonte,
   corDeTexto,
+  cordaCirculo,
   drawFotoCover,
   drawLogo,
   drawTeclasUrna,
@@ -15,8 +16,59 @@ import {
 export const template: Template = {
   id: "faixa",
   nome: "Faixa",
-  suporta: ["feed", "story"],
+  suporta: ["feed", "story", "perfil"],
   draw(ctx, { W, H, u, foto, candidato, formato }) {
+    if (formato === "perfil") {
+      // Versão circular: barra vira um segmento na base do círculo,
+      // com nome e teclas centralizados na área segura do corte redondo.
+      const alturaBarra = 320 * u;
+      const topoBarra = H - alturaBarra;
+      drawFotoCover(ctx, foto, 0, 0, W, topoBarra);
+      ctx.fillStyle = candidato.corPrimaria;
+      ctx.fillRect(0, topoBarra, W, alturaBarra);
+      ctx.fillStyle = candidato.corSecundaria;
+      ctx.fillRect(0, topoBarra, W, 10 * u);
+
+      const corTexto = corDeTexto(candidato.corPrimaria);
+      const nome = candidato.nome.toUpperCase();
+      const yNome = topoBarra + 100 * u;
+      ctx.save();
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = corTexto;
+      ajustarFonte(
+        ctx,
+        nome,
+        (px) => fontDisplay(px, 800),
+        84 * u,
+        cordaCirculo(W, yNome) - 90 * u
+      );
+      ctx.fillText(nome, W / 2, yNome);
+      ctx.restore();
+
+      const digitos = candidato.numero.replace(/\D/g, "");
+      const n = Math.max(digitos.length, 1);
+      const yTeclas = topoBarra + 225 * u;
+      const tecla = Math.min(
+        84 * u,
+        (cordaCirculo(W, yTeclas) - 90 * u) / (n + (n - 1) * 0.12)
+      );
+      drawTeclasUrna(
+        ctx,
+        candidato.numero,
+        W / 2,
+        yTeclas,
+        tecla,
+        candidato.corSecundaria,
+        corDeTexto(candidato.corSecundaria)
+      );
+
+      if (candidato.logo) {
+        drawLogo(ctx, candidato.logo, W / 2, 60 * u, 100 * u, "center");
+      }
+      return;
+    }
+
     const alturaBarra = (formato === "feed" ? 280 : 340) * u;
     const topoBarra = H - alturaBarra;
 

@@ -1,4 +1,4 @@
-export type Formato = "feed" | "story";
+export type Formato = "feed" | "story" | "perfil";
 
 // Ajuste feito pelo apoiador: arrastar (offset em px do canvas) e zoom (1 = cover).
 export interface FotoAjuste {

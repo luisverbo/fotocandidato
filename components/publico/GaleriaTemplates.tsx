@@ -69,7 +69,7 @@ function Miniatura({
     >
       <canvas
         ref={ref}
-        className="block rounded-lg"
+        className={`block ${formato === "perfil" ? "rounded-full" : "rounded-lg"}`}
         style={{ width: LARGURA_MINIATURA }}
         aria-hidden="true"
       />

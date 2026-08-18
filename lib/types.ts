@@ -10,6 +10,7 @@ export interface Candidato {
   cor_primaria: string;
   cor_secundaria: string;
   logo_url: string | null;
+  foto_url: string | null;
   templates_ativos: string[];
   ativo: boolean;
   created_at: string;
@@ -19,7 +20,7 @@ export interface Geracao {
   id: string;
   candidato_id: string;
   template: string;
-  formato: "feed" | "story";
+  formato: "feed" | "story" | "perfil";
   acao: "download" | "share";
   created_at: string;
 }

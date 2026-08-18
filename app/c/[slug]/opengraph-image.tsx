@@ -11,6 +11,7 @@ interface CandidatoOg {
   cargo: string;
   partido: string | null;
   cor_primaria: string;
+  foto_url: string | null;
   cor_secundaria: string;
 }
 
@@ -22,7 +23,7 @@ async function buscarCandidato(slug: string): Promise<CandidatoOg | null> {
     const res = await fetch(
       `${url}/rest/v1/candidatos?slug=eq.${encodeURIComponent(
         slug
-      )}&ativo=eq.true&select=nome,numero,cargo,partido,cor_primaria,cor_secundaria&limit=1`,
+      )}&ativo=eq.true&select=nome,numero,cargo,partido,cor_primaria,cor_secundaria,foto_url&limit=1`,
       {
         headers: { apikey: key, authorization: `Bearer ${key}` },
         next: { revalidate: 300 },
@@ -72,6 +73,20 @@ export default async function Image({
           fontFamily: "sans-serif",
         }}
       >
+        {c?.foto_url && (
+          // eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text
+          <img
+            src={c.foto_url}
+            width={180}
+            height={180}
+            style={{
+              borderRadius: 9999,
+              objectFit: "cover",
+              marginBottom: 24,
+              border: "6px solid " + secundaria,
+            }}
+          />
+        )}
         <div
           style={{
             fontSize: 34,

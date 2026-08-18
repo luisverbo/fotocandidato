@@ -37,7 +37,8 @@ export default function FluxoApoiador({ candidato }: Props) {
   const [ajuste, setAjuste] = useState<FotoAjuste>(AJUSTE_INICIAL);
   const [formato, setFormato] = useState<Formato>("feed");
   const [erro, setErro] = useState<string | null>(null);
-  const [aviso, setAviso] = useState<string | null>(null);
+  // Data URL da arte final, exibida no modal de salvar
+  const [resultado, setResultado] = useState<string | null>(null);
   const [processando, setProcessando] = useState(false);
   const [gerando, setGerando] = useState(false);
   const [fontesProntas, setFontesProntas] = useState(false);
@@ -87,7 +88,6 @@ export default function FluxoApoiador({ candidato }: Props) {
     if (!arquivo) return;
 
     setErro(null);
-    setAviso(null);
     setProcessando(true);
     try {
       const carregada = await carregarFoto(arquivo);
@@ -107,34 +107,29 @@ export default function FluxoApoiador({ candidato }: Props) {
     }
   }
 
-  async function gerarArquivo(): Promise<File | null> {
+  const nomeArquivo = `santinho-${candidato.slug}-${formato}.jpg`;
+
+  // Renderiza a arte final em resolução real, num canvas fora da tela.
+  async function renderizarFinal(): Promise<HTMLCanvasElement | null> {
     if (!fotoPosicionada || !template) return null;
     await aguardarFontes();
     const canvas = document.createElement("canvas");
     renderizarArte(canvas, template, fotoPosicionada, arte, formato);
-    const blob = await canvasParaBlob(canvas);
-    return new File([blob], `santinho-${candidato.slug}-${formato}.jpg`, {
-      type: "image/jpeg",
-    });
+    return canvas;
   }
 
   async function baixar() {
     if (gerando) return;
     setGerando(true);
-    setAviso(null);
+    setErro(null);
     registrarGeracao(candidato.id, template?.id ?? "", formato, "download");
     try {
-      const arquivo = await gerarArquivo();
-      if (!arquivo) return;
-      const url = URL.createObjectURL(arquivo);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = arquivo.name;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 10_000);
-      setAviso("Imagem salva. Agora é só postar!");
+      const canvas = await renderizarFinal();
+      if (!canvas) return;
+      // Mostra a arte num modal com link de download direto: downloads
+      // automáticos são bloqueados em navegadores de apps (WhatsApp,
+      // Instagram) e no Safari após operações assíncronas.
+      setResultado(canvas.toDataURL("image/jpeg", 0.92));
     } catch {
       setErro("Algo deu errado ao gerar a imagem. Tente de novo.");
     } finally {
@@ -145,38 +140,37 @@ export default function FluxoApoiador({ candidato }: Props) {
   async function compartilhar() {
     if (gerando) return;
     setGerando(true);
-    setAviso(null);
+    setErro(null);
     registrarGeracao(candidato.id, template?.id ?? "", formato, "share");
     try {
-      const arquivo = await gerarArquivo();
-      if (!arquivo) return;
+      const canvas = await renderizarFinal();
+      if (!canvas) return;
 
+      let compartilhou = false;
       if (
         typeof navigator.share === "function" &&
-        typeof navigator.canShare === "function" &&
-        navigator.canShare({ files: [arquivo] })
+        typeof navigator.canShare === "function"
       ) {
-        try {
-          await navigator.share({
-            files: [arquivo],
-            title: `${candidato.nome} ${candidato.numero}`,
-          });
-        } catch (err) {
-          if ((err as DOMException)?.name !== "AbortError") {
-            throw err;
+        const blob = await canvasParaBlob(canvas);
+        const arquivo = new File([blob], nomeArquivo, { type: "image/jpeg" });
+        if (navigator.canShare({ files: [arquivo] })) {
+          try {
+            await navigator.share({
+              files: [arquivo],
+              title: `${candidato.nome} ${candidato.numero}`,
+            });
+            compartilhou = true;
+          } catch (err) {
+            if ((err as DOMException)?.name === "AbortError") {
+              compartilhou = true; // a pessoa desistiu — não force fallback
+            }
           }
         }
-      } else {
-        // Navegador sem Web Share: cai para download.
-        const url = URL.createObjectURL(arquivo);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = arquivo.name;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 10_000);
-        setAviso("Seu celular não abre o menu de compartilhar por aqui. A imagem foi salva — poste direto da galeria.");
+      }
+
+      if (!compartilhou) {
+        // Sem Web Share (ou bloqueado): abre o modal para salvar a imagem.
+        setResultado(canvas.toDataURL("image/jpeg", 0.92));
       }
     } catch {
       setErro("Algo deu errado ao gerar a imagem. Tente de novo.");
@@ -192,17 +186,30 @@ export default function FluxoApoiador({ candidato }: Props) {
     <main className="mx-auto min-h-dvh w-full max-w-xl bg-white pb-16">
       {/* Cabeçalho com a identidade do candidato */}
       <header
-        className="px-6 py-5 text-center"
+        className="px-6 py-5"
         style={{ backgroundColor: corHeader, color: corHeaderTexto }}
       >
-        <p className="text-sm font-semibold opacity-90">Apoie</p>
-        <h1 className="font-display text-3xl font-extrabold uppercase leading-tight">
-          {candidato.nome} · {candidato.numero}
-        </h1>
-        <p className="text-sm font-semibold opacity-90">
-          {candidato.cargo}
-          {candidato.partido ? ` · ${candidato.partido}` : ""}
-        </p>
+        <div className="flex items-center justify-center gap-4">
+          {candidato.foto_url && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={candidato.foto_url}
+              alt={`Foto de ${candidato.nome}`}
+              className="h-20 w-20 shrink-0 rounded-full border-2 object-cover"
+              style={{ borderColor: corHeaderTexto }}
+            />
+          )}
+          <div className={candidato.foto_url ? "text-left" : "text-center"}>
+            <p className="text-sm font-semibold opacity-90">Apoie</p>
+            <h1 className="font-display text-3xl font-extrabold uppercase leading-tight">
+              {candidato.nome} · {candidato.numero}
+            </h1>
+            <p className="text-sm font-semibold opacity-90">
+              {candidato.cargo}
+              {candidato.partido ? ` · ${candidato.partido}` : ""}
+            </p>
+          </div>
+        </div>
       </header>
 
       <div className="px-6">
@@ -284,14 +291,15 @@ export default function FluxoApoiador({ candidato }: Props) {
             </h2>
 
             <div
-              className="mt-4 grid grid-cols-2 gap-2"
+              className="mt-4 grid grid-cols-3 gap-2"
               role="group"
               aria-label="Formato da arte"
             >
               {(
                 [
-                  ["feed", "Feed / Perfil"],
-                  ["story", "Story / Status"],
+                  ["feed", "Feed"],
+                  ["perfil", "Perfil"],
+                  ["story", "Story"],
                 ] as [Formato, string][]
               ).map(([f, rotulo]) => (
                 <button
@@ -375,17 +383,67 @@ export default function FluxoApoiador({ candidato }: Props) {
                 Baixar imagem
               </button>
             </div>
-            {aviso && (
+            {erro && (
               <p
-                role="status"
-                className="mt-3 rounded-lg bg-emerald-50 px-4 py-3 font-semibold text-emerald-800"
+                role="alert"
+                className="mt-3 rounded-lg bg-red-50 px-4 py-3 font-semibold text-red-700"
               >
-                {aviso}
+                {erro}
               </p>
             )}
           </section>
         )}
       </div>
+
+      {/* Modal com a arte pronta para salvar */}
+      {resultado && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Sua arte está pronta"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-5"
+          onClick={() => setResultado(null)}
+        >
+          <div
+            className="max-h-[92dvh] w-full max-w-sm overflow-y-auto rounded-2xl bg-white p-5 text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-bold text-neutral-900">
+              Sua arte está pronta!
+            </h3>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={resultado}
+              alt="Arte final com a sua foto"
+              className={`mx-auto mt-3 max-h-[50dvh] w-auto ${
+                formato === "perfil" ? "rounded-full" : "rounded-lg"
+              }`}
+            />
+            <p className="mt-3 text-sm text-neutral-600">
+              Toque no botão abaixo para salvar. Se não funcionar, segure o
+              dedo na imagem e escolha “Salvar imagem”.
+            </p>
+            <a
+              href={resultado}
+              download={nomeArquivo}
+              className="mt-4 block min-h-14 rounded-xl px-6 py-4 text-lg font-bold"
+              style={{
+                backgroundColor: candidato.cor_primaria,
+                color: corHeaderTexto,
+              }}
+            >
+              Salvar imagem
+            </a>
+            <button
+              type="button"
+              onClick={() => setResultado(null)}
+              className="mt-2 min-h-12 w-full rounded-xl border-2 border-neutral-300 font-semibold text-neutral-700"
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

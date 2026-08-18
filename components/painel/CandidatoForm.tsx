@@ -50,6 +50,12 @@ export default function CandidatoForm({ inicial }: Props) {
   const [logoImg, setLogoImg] = useState<HTMLImageElement | null>(null);
   const [logoRemovida, setLogoRemovida] = useState(false);
 
+  const [fotoFile, setFotoFile] = useState<File | null>(null);
+  const [fotoPreview, setFotoPreview] = useState<string | null>(
+    inicial?.foto_url ?? null
+  );
+  const [fotoRemovida, setFotoRemovida] = useState(false);
+
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -130,6 +136,24 @@ export default function CandidatoForm({ inicial }: Props) {
           .publicUrl;
       }
 
+      // Upload da foto do candidato, se houver
+      let fotoUrl: string | null = fotoRemovida
+        ? null
+        : (inicial?.foto_url ?? null);
+      if (fotoFile) {
+        const extensao = fotoFile.type === "image/png" ? "png" : "jpg";
+        const caminho = `${user.id}/foto-${crypto.randomUUID()}.${extensao}`;
+        const { error: erroUpload } = await supabase.storage
+          .from("logos")
+          .upload(caminho, fotoFile, { contentType: fotoFile.type });
+        if (erroUpload) {
+          setErro("Não foi possível enviar a foto do candidato. Tente novamente.");
+          return;
+        }
+        fotoUrl = supabase.storage.from("logos").getPublicUrl(caminho).data
+          .publicUrl;
+      }
+
       const dados = {
         nome: nome.trim(),
         numero: numero.trim(),
@@ -139,6 +163,7 @@ export default function CandidatoForm({ inicial }: Props) {
         cor_primaria: corPrimaria,
         cor_secundaria: corSecundaria,
         logo_url: logoUrl,
+        foto_url: fotoUrl,
         templates_ativos: templatesAtivos,
         ativo,
       };
@@ -292,6 +317,49 @@ export default function CandidatoForm({ inicial }: Props) {
               />
             </div>
           </label>
+
+          <div className="sm:col-span-2">
+            <span className={rotulo}>
+              Foto do candidato (aparece no topo da página pública, opcional)
+            </span>
+            <div className="flex flex-wrap items-center gap-3">
+              {fotoPreview && !fotoRemovida && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={fotoPreview}
+                  alt="Prévia da foto do candidato"
+                  className="h-14 w-14 rounded-full border border-zinc-700 object-cover"
+                />
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const arquivo = e.target.files?.[0] ?? null;
+                  setFotoFile(arquivo);
+                  setFotoRemovida(false);
+                  setFotoPreview(
+                    arquivo ? URL.createObjectURL(arquivo) : (inicial?.foto_url ?? null)
+                  );
+                }}
+                className="text-sm text-zinc-400 file:mr-3 file:rounded-md file:border-0 file:bg-zinc-100 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-zinc-900"
+                aria-label="Enviar foto do candidato"
+              />
+              {(fotoFile || (inicial?.foto_url && !fotoRemovida)) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFotoFile(null);
+                    setFotoRemovida(true);
+                    setFotoPreview(null);
+                  }}
+                  className="rounded-md border border-zinc-700 px-3 py-2 text-sm text-zinc-300 hover:bg-zinc-800"
+                >
+                  Remover foto
+                </button>
+              )}
+            </div>
+          </div>
 
           <div className="sm:col-span-2">
             <span className={rotulo}>Logo (PNG transparente, opcional)</span>

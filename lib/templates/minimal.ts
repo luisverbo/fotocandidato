@@ -15,8 +15,79 @@ import {
 export const template: Template = {
   id: "minimal",
   nome: "Minimal",
-  suporta: ["feed", "story"],
+  suporta: ["feed", "story", "perfil"],
   draw(ctx, { W, H, u, foto, candidato, formato }) {
+    if (formato === "perfil") {
+      // Versão circular: badge centralizado na base do círculo.
+      drawFotoCover(ctx, foto, 0, 0, W, H);
+
+      const alturaBadge = 120 * u;
+      const respiro = 26 * u;
+      const nome = candidato.nome.toUpperCase();
+      const linhaCargo = candidato.cargo.toUpperCase();
+      ctx.font = fontTexto(32 * u, 700);
+      const larguraNome = Math.min(ctx.measureText(nome).width, 360 * u);
+      ctx.font = fontTexto(22 * u, 500);
+      const larguraCargo = Math.min(ctx.measureText(linhaCargo).width, 360 * u);
+      const larguraTexto = Math.max(larguraNome, larguraCargo);
+
+      const ladoNumero = alturaBadge;
+      const larguraBadge = ladoNumero + respiro + larguraTexto + respiro;
+      const x = W / 2 - larguraBadge / 2;
+      const y = 850 * u;
+
+      ctx.save();
+      ctx.shadowColor = "rgba(0, 0, 0, 0.3)";
+      ctx.shadowBlur = 24 * u;
+      ctx.shadowOffsetY = 8 * u;
+      pathRoundRect(ctx, x, y, larguraBadge, alturaBadge, 22 * u);
+      ctx.fillStyle = "#ffffff";
+      ctx.fill();
+      ctx.restore();
+
+      ctx.save();
+      pathRoundRect(ctx, x, y, ladoNumero, alturaBadge, 22 * u);
+      ctx.clip();
+      ctx.fillStyle = candidato.corPrimaria;
+      ctx.fillRect(x, y, ladoNumero, alturaBadge);
+      ctx.fillStyle = candidato.corSecundaria;
+      ctx.fillRect(x + ladoNumero - 8 * u, y, 8 * u, alturaBadge);
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = corDeTexto(candidato.corPrimaria);
+      ajustarFonte(
+        ctx,
+        candidato.numero,
+        (px) => fontDisplay(px, 800),
+        alturaBadge * 0.56,
+        ladoNumero - 22 * u
+      );
+      ctx.fillText(candidato.numero, x + ladoNumero / 2, y + alturaBadge / 2);
+      ctx.restore();
+
+      ctx.save();
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "#161616";
+      ajustarFonte(ctx, nome, (px) => fontTexto(px, 700), 32 * u, larguraTexto);
+      ctx.fillText(nome, x + ladoNumero + respiro, y + alturaBadge * 0.36);
+      ctx.fillStyle = rgba("#161616", 0.65);
+      ajustarFonte(
+        ctx,
+        linhaCargo,
+        (px) => fontTexto(px, 500),
+        22 * u,
+        larguraTexto
+      );
+      ctx.fillText(linhaCargo, x + ladoNumero + respiro, y + alturaBadge * 0.7);
+      ctx.restore();
+
+      if (candidato.logo) {
+        drawLogo(ctx, candidato.logo, W / 2, 60 * u, 90 * u, "center");
+      }
+      return;
+    }
+
     drawFotoCover(ctx, foto, 0, 0, W, H);
 
     const margem = 44 * u;

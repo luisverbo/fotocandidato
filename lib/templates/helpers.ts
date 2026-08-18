@@ -156,3 +156,12 @@ export function drawLogo(
     align === "left" ? x : align === "right" ? x - largura : x - largura / 2;
   ctx.drawImage(logo, dx, y, largura, altura);
 }
+
+// Largura útil (corda) de um círculo de diâmetro W na altura y.
+// Usada no formato "perfil" para manter o conteúdo dentro do corte redondo.
+export function cordaCirculo(W: number, y: number): number {
+  const r = W / 2;
+  const dy = Math.abs(y - r);
+  if (dy >= r) return 0;
+  return 2 * Math.sqrt(r * r - dy * dy);
+}

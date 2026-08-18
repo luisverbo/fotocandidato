@@ -2,6 +2,7 @@ import type { Template } from "./types";
 import {
   ajustarFonte,
   corDeTexto,
+  cordaCirculo,
   drawFotoCover,
   drawLogo,
   fontDisplay,
@@ -15,8 +16,105 @@ import {
 export const template: Template = {
   id: "borda",
   nome: "Borda",
-  suporta: ["feed", "story"],
+  suporta: ["feed", "story", "perfil"],
   draw(ctx, { W, H, u, foto, candidato, formato }) {
+    if (formato === "perfil") {
+      // Versão circular: a moldura vira um anel na borda do corte redondo.
+      drawFotoCover(ctx, foto, 0, 0, W, H);
+
+      const r = W / 2;
+      ctx.beginPath();
+      ctx.arc(r, r, r - 45 * u, 0, Math.PI * 2);
+      ctx.lineWidth = 90 * u;
+      ctx.strokeStyle = candidato.corPrimaria;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(r, r, r - 100 * u, 0, Math.PI * 2);
+      ctx.lineWidth = 8 * u;
+      ctx.strokeStyle = candidato.corSecundaria;
+      ctx.stroke();
+
+      // Etiqueta no topo (slogan; sem slogan, cargo)
+      const textoEtiqueta = (candidato.slogan || candidato.cargo).toUpperCase();
+      const yEtiqueta = 130 * u;
+      ctx.save();
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ajustarFonte(
+        ctx,
+        textoEtiqueta,
+        (px) => fontTexto(px, 700),
+        30 * u,
+        cordaCirculo(W, yEtiqueta) - 220 * u
+      );
+      const larguraTexto = ctx.measureText(textoEtiqueta).width;
+      const alturaEtiqueta = 76 * u;
+      const larguraEtiqueta = larguraTexto + 84 * u;
+      pathRoundRect(
+        ctx,
+        W / 2 - larguraEtiqueta / 2,
+        yEtiqueta - alturaEtiqueta / 2,
+        larguraEtiqueta,
+        alturaEtiqueta,
+        alturaEtiqueta / 2
+      );
+      ctx.fillStyle = candidato.corSecundaria;
+      ctx.fill();
+      ctx.fillStyle = corDeTexto(candidato.corSecundaria);
+      ctx.fillText(textoEtiqueta, W / 2, yEtiqueta);
+      ctx.restore();
+
+      // Placa na base com nome e número
+      const corTexto = corDeTexto(candidato.corPrimaria);
+      const alturaPlaca = 180 * u;
+      const yPlaca = H - 205 * u;
+      const larguraPlaca = Math.min(
+        620 * u,
+        cordaCirculo(W, yPlaca + alturaPlaca / 2) - 40 * u
+      );
+      ctx.save();
+      pathRoundRect(
+        ctx,
+        W / 2 - larguraPlaca / 2,
+        yPlaca - alturaPlaca / 2,
+        larguraPlaca,
+        alturaPlaca,
+        28 * u
+      );
+      ctx.fillStyle = candidato.corPrimaria;
+      ctx.fill();
+      ctx.lineWidth = 6 * u;
+      ctx.strokeStyle = candidato.corSecundaria;
+      ctx.stroke();
+
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      const nome = candidato.nome.toUpperCase();
+      ctx.fillStyle = corTexto;
+      ajustarFonte(
+        ctx,
+        nome,
+        (px) => fontDisplay(px, 700),
+        46 * u,
+        larguraPlaca - 60 * u
+      );
+      ctx.fillText(nome, W / 2, yPlaca - 40 * u);
+      ajustarFonte(
+        ctx,
+        candidato.numero,
+        (px) => fontDisplay(px, 800),
+        92 * u,
+        larguraPlaca - 60 * u
+      );
+      ctx.fillText(candidato.numero, W / 2, yPlaca + 42 * u);
+      ctx.restore();
+
+      if (candidato.logo) {
+        drawLogo(ctx, candidato.logo, W / 2, 216 * u, 90 * u, "center");
+      }
+      return;
+    }
+
     const lateral = 56 * u;
     const topo = 56 * u;
     const base = (formato === "feed" ? 300 : 380) * u;

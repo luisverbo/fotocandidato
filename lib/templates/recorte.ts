@@ -2,6 +2,7 @@ import type { Template } from "./types";
 import {
   ajustarFonte,
   corDeTexto,
+  cordaCirculo,
   drawFotoCover,
   drawLogo,
   drawTeclasUrna,
@@ -32,8 +33,67 @@ function pathHexagono(
 export const template: Template = {
   id: "recorte",
   nome: "Recorte",
-  suporta: ["feed", "story"],
+  suporta: ["feed", "story", "perfil"],
   draw(ctx, { W, H, u, foto, candidato, formato }) {
+    if (formato === "perfil") {
+      // Versão circular: círculo de foto menor, nome no topo e teclas na
+      // base, tudo dentro da área segura do corte redondo.
+      ctx.fillStyle = candidato.corPrimaria;
+      ctx.fillRect(0, 0, W, H);
+
+      const raio = 300 * u;
+      const cx = W / 2;
+      const cy = 530 * u;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(cx, cy, raio, 0, Math.PI * 2);
+      ctx.clip();
+      drawFotoCover(ctx, foto, cx - raio, cy - raio, raio * 2, raio * 2);
+      ctx.restore();
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, raio, 0, Math.PI * 2);
+      ctx.lineWidth = 14 * u;
+      ctx.strokeStyle = candidato.corSecundaria;
+      ctx.stroke();
+
+      const corTexto = corDeTexto(candidato.corPrimaria);
+      const nome = candidato.nome.toUpperCase();
+      const yNome = 150 * u;
+      ctx.save();
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = corTexto;
+      ajustarFonte(
+        ctx,
+        nome,
+        (px) => fontDisplay(px, 800),
+        72 * u,
+        cordaCirculo(W, yNome) - 80 * u
+      );
+      ctx.fillText(nome, cx, yNome);
+      ctx.restore();
+
+      const digitos = candidato.numero.replace(/\D/g, "");
+      const n = Math.max(digitos.length, 1);
+      const yTeclas = 935 * u;
+      const tecla = Math.min(
+        80 * u,
+        (cordaCirculo(W, yTeclas + 40 * u) - 60 * u) / (n + (n - 1) * 0.12)
+      );
+      drawTeclasUrna(
+        ctx,
+        candidato.numero,
+        cx,
+        yTeclas,
+        tecla,
+        candidato.corSecundaria,
+        corDeTexto(candidato.corSecundaria)
+      );
+      return;
+    }
+
     ctx.fillStyle = candidato.corPrimaria;
     ctx.fillRect(0, 0, W, H);
 
