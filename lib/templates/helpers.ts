@@ -165,3 +165,35 @@ export function cordaCirculo(W: number, y: number): number {
   if (dy >= r) return 0;
   return 2 * Math.sqrt(r * r - dy * dy);
 }
+
+// Pill de destaque (etiqueta arredondada) com texto centrado em (cx, cy).
+export function drawPill(
+  ctx: CanvasRenderingContext2D,
+  texto: string,
+  cx: number,
+  cy: number,
+  alturaPill: number,
+  fontPx: number,
+  corFundo: string,
+  corTextoPill: string,
+  maxWidth: number
+): void {
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ajustarFonte(ctx, texto, (px) => fontTexto(px, 700), fontPx, maxWidth);
+  const largura = ctx.measureText(texto).width + alturaPill * 1.1;
+  pathRoundRect(
+    ctx,
+    cx - largura / 2,
+    cy - alturaPill / 2,
+    largura,
+    alturaPill,
+    alturaPill / 2
+  );
+  ctx.fillStyle = corFundo;
+  ctx.fill();
+  ctx.fillStyle = corTextoPill;
+  ctx.fillText(texto, cx, cy + alturaPill * 0.03);
+  ctx.restore();
+}

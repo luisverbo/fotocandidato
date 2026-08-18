@@ -47,11 +47,11 @@ export const template: Template = {
         ctx,
         textoEtiqueta,
         (px) => fontTexto(px, 700),
-        30 * u,
+        34 * u,
         cordaCirculo(W, yEtiqueta) - 220 * u
       );
       const larguraTexto = ctx.measureText(textoEtiqueta).width;
-      const alturaEtiqueta = 76 * u;
+      const alturaEtiqueta = 86 * u;
       const larguraEtiqueta = larguraTexto + 84 * u;
       pathRoundRect(
         ctx,

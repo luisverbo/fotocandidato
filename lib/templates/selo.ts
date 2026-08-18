@@ -5,6 +5,7 @@ import {
   cordaCirculo,
   drawFotoCover,
   drawLogo,
+  drawPill,
   fontDisplay,
   fontTexto,
   pathRoundRect,
@@ -40,19 +41,21 @@ export const template: Template = {
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
 
-      // Cargo pequeno acima do nome
+      // Cargo em destaque: pill acima do nome
       const linhaCargo = [candidato.cargo.toUpperCase(), candidato.partido]
         .filter(Boolean)
         .join(" · ");
-      ctx.fillStyle = rgba(corTexto, 0.9);
-      ajustarFonte(
+      drawPill(
         ctx,
         linhaCargo,
-        (px) => fontTexto(px, 600),
-        28 * u,
-        cordaCirculo(W, H - 400 * u) - 120 * u
+        cx,
+        H - 418 * u,
+        60 * u,
+        30 * u,
+        candidato.corSecundaria,
+        corDeTexto(candidato.corSecundaria),
+        cordaCirculo(W, H - 418 * u) - 160 * u
       );
-      ctx.fillText(linhaCargo, cx, H - 400 * u);
 
       ctx.fillStyle = corTexto;
       ajustarFonte(

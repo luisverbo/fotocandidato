@@ -5,6 +5,7 @@ import {
   cordaCirculo,
   drawFotoCover,
   drawLogo,
+  drawPill,
   drawTeclasUrna,
   fontDisplay,
   fontTexto,
@@ -53,7 +54,7 @@ export const template: Template = {
       const cx = W / 2;
 
       const nome = candidato.nome.toUpperCase();
-      const yNome = 100 * u;
+      const yNome = 105 * u;
       ctx.save();
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
@@ -62,24 +63,27 @@ export const template: Template = {
         ctx,
         nome,
         (px) => fontDisplay(px, 800),
-        70 * u,
+        68 * u,
         cordaCirculo(W, yNome) - 90 * u
       );
       ctx.fillText(nome, cx, yNome);
+      ctx.restore();
 
+      // Cargo em destaque: pill na borda da tampa de cima
       const linhaCargo = [candidato.cargo.toUpperCase(), candidato.partido]
         .filter(Boolean)
         .join(" · ");
-      ctx.fillStyle = rgba(corTexto, 0.85);
-      ajustarFonte(
+      drawPill(
         ctx,
         linhaCargo,
-        (px) => fontTexto(px, 600),
-        28 * u,
-        cordaCirculo(W, 168 * u) - 90 * u
+        cx,
+        capTopo,
+        60 * u,
+        30 * u,
+        candidato.corSecundaria,
+        corDeTexto(candidato.corSecundaria),
+        cordaCirculo(W, capTopo) - 160 * u
       );
-      ctx.fillText(linhaCargo, cx, 168 * u);
-      ctx.restore();
 
       const digitos = candidato.numero.replace(/\D/g, "");
       const n = Math.max(digitos.length, 1);
