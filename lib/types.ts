@@ -24,3 +24,12 @@ export interface Geracao {
   acao: "download" | "share";
   created_at: string;
 }
+
+export interface Moldura {
+  id: string;
+  candidato_id: string;
+  nome: string;
+  formato: "feed" | "story" | "perfil";
+  arquivo_url: string;
+  created_at: string;
+}

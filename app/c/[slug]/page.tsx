@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { supabaseAnon } from "@/lib/supabase/server";
-import type { Candidato } from "@/lib/types";
+import type { Candidato, Moldura } from "@/lib/types";
 import FluxoApoiador from "@/components/publico/FluxoApoiador";
 
 // Revalida a cada 60s: página pública rápida (menos de 2s no 4G) sem
@@ -78,5 +78,17 @@ export default async function PaginaCandidato({ params }: Props) {
   if (!candidato) {
     return <LinkIndisponivel />;
   }
-  return <FluxoApoiador candidato={candidato} />;
+
+  const { data: molduras } = await supabaseAnon()
+    .from("molduras")
+    .select("*")
+    .eq("candidato_id", candidato.id)
+    .order("created_at");
+
+  return (
+    <FluxoApoiador
+      candidato={candidato}
+      molduras={(molduras ?? []) as Moldura[]}
+    />
+  );
 }

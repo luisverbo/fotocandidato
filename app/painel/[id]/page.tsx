@@ -2,10 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { supabaseServer } from "@/lib/supabase/server";
 import { siteUrl } from "@/lib/site";
-import type { Candidato } from "@/lib/types";
+import type { Candidato, Moldura } from "@/lib/types";
 import { templatePorId } from "@/lib/templates";
 import CandidatoForm from "@/components/painel/CandidatoForm";
 import CopiarLink from "@/components/painel/CopiarLink";
+import MoldurasManager from "@/components/painel/MoldurasManager";
 import QrCodeLink from "@/components/painel/QrCodeLink";
 
 export const dynamic = "force-dynamic";
@@ -29,6 +30,18 @@ export default async function EditarCandidatoPage({ params }: Props) {
     .from("geracoes")
     .select("template, formato, acao")
     .eq("candidato_id", candidato.id);
+
+  const { data: dadosMolduras } = await supabase
+    .from("molduras")
+    .select("*")
+    .eq("candidato_id", candidato.id)
+    .order("created_at");
+  const molduras = (dadosMolduras ?? []) as Moldura[];
+
+  const nomeDoTemplate = (id: string) =>
+    templatePorId(id)?.nome ??
+    molduras.find((m) => `moldura-${m.id}` === id)?.nome ??
+    id;
 
   const linhas = geracoes ?? [];
   const total = linhas.length;
@@ -96,13 +109,17 @@ export default async function EditarCandidatoPage({ params }: Props) {
                 key={id}
                 className="rounded-md bg-zinc-800 px-3 py-1.5 text-zinc-200"
               >
-                {templatePorId(id)?.nome ?? id}:{" "}
+                {nomeDoTemplate(id)}:{" "}
                 <strong className="text-white">{qtd}</strong>
               </li>
             ))}
           </ul>
         </section>
       )}
+
+      <div className="mt-6">
+        <MoldurasManager candidatoId={candidato.id} iniciais={molduras} />
+      </div>
 
       <div className="mt-10">
         <CandidatoForm inicial={candidato} />

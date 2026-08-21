@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Candidato } from "@/lib/types";
+import type { Candidato, Moldura } from "@/lib/types";
 import type {
   CandidatoArte,
   Formato,
@@ -9,6 +9,7 @@ import type {
   FotoPosicionada,
 } from "@/lib/templates/types";
 import { templates as todosTemplates } from "@/lib/templates";
+import { criarTemplateMoldura } from "@/lib/templates/moldura";
 import { corDeTexto } from "@/lib/templates/helpers";
 import {
   carregarFoto,
@@ -30,9 +31,10 @@ const AJUSTE_INICIAL: FotoAjuste = { offsetX: 0, offsetY: 0, zoom: 1 };
 
 interface Props {
   candidato: Candidato;
+  molduras: Moldura[];
 }
 
-export default function FluxoApoiador({ candidato }: Props) {
+export default function FluxoApoiador({ candidato, molduras }: Props) {
   const [foto, setFoto] = useState<FotoCarregada | null>(null);
   const [ajuste, setAjuste] = useState<FotoAjuste>(AJUSTE_INICIAL);
   const [formato, setFormato] = useState<Formato>("feed");
@@ -50,20 +52,57 @@ export default function FluxoApoiador({ candidato }: Props) {
   const inputCameraRef = useRef<HTMLInputElement>(null);
   const inputGaleriaRef = useRef<HTMLInputElement>(null);
   const etapa2Ref = useRef<HTMLDivElement>(null);
+  const escolheuManual = useRef(false);
 
-  const templatesAtivos = useMemo(
-    () =>
-      todosTemplates.filter(
-        (t) =>
-          candidato.templates_ativos.includes(t.id) && t.suporta.includes(formato)
-      ),
-    [candidato.templates_ativos, formato]
-  );
+  // Molduras prontas (arte final do cliente) com a imagem já carregada
+  const [moldurasProntas, setMoldurasProntas] = useState<
+    { moldura: Moldura; img: HTMLImageElement }[]
+  >([]);
+
+  useEffect(() => {
+    let ativo = true;
+    Promise.all(
+      molduras.map(async (m) => {
+        const img = await carregarImagemUrl(m.arquivo_url);
+        return img ? { moldura: m, img } : null;
+      })
+    ).then((resultado) => {
+      if (ativo) {
+        setMoldurasProntas(
+          resultado.filter(Boolean) as { moldura: Moldura; img: HTMLImageElement }[]
+        );
+      }
+    });
+    return () => {
+      ativo = false;
+    };
+  }, [molduras]);
+
+  // Molduras do cliente vêm primeiro; depois os modelos genéricos
+  const templatesAtivos = useMemo(() => {
+    const dasMolduras = moldurasProntas
+      .filter((m) => m.moldura.formato === formato)
+      .map((m) => criarTemplateMoldura(m.moldura, m.img));
+    const genericos = todosTemplates.filter(
+      (t) =>
+        candidato.templates_ativos.includes(t.id) && t.suporta.includes(formato)
+    );
+    return [...dasMolduras, ...genericos];
+  }, [moldurasProntas, candidato.templates_ativos, formato]);
+
   const [templateId, setTemplateId] = useState<string>(
     () => templatesAtivos[0]?.id ?? "faixa"
   );
   const template =
     templatesAtivos.find((t) => t.id === templateId) ?? templatesAtivos[0];
+
+  // Enquanto a pessoa não escolher um modelo, a arte oficial do candidato
+  // (moldura) é a seleção padrão assim que carrega.
+  useEffect(() => {
+    if (escolheuManual.current) return;
+    const primeira = moldurasProntas.find((m) => m.moldura.formato === formato);
+    if (primeira) setTemplateId(`moldura-${primeira.moldura.id}`);
+  }, [moldurasProntas, formato]);
 
   useEffect(() => {
     aguardarFontes().then(() => setFontesProntas(true));
@@ -359,7 +398,10 @@ export default function FluxoApoiador({ candidato }: Props) {
                 candidato={arte}
                 formato={formato}
                 selecionado={template.id}
-                onSelecionar={setTemplateId}
+                onSelecionar={(id) => {
+                  escolheuManual.current = true;
+                  setTemplateId(id);
+                }}
               />
             </div>
 
