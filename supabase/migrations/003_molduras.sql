@@ -1,11 +1,10 @@
 -- ============================================================
--- Santinho Digital — migração 003
+-- Santinho Digital — migração 003 (idempotente: pode colar de novo)
 -- Molduras prontas: artes enviadas pelo organizador (PNG com área
 -- transparente onde entra a foto do apoiador).
--- Cole no SQL Editor do Supabase e execute (depois da 001 e 002).
 -- ============================================================
 
-create table public.molduras (
+create table if not exists public.molduras (
   id           uuid primary key default gen_random_uuid(),
   candidato_id uuid not null references public.candidatos (id) on delete cascade,
   nome         text not null,
@@ -14,11 +13,12 @@ create table public.molduras (
   created_at   timestamptz not null default now()
 );
 
-create index molduras_candidato_id_idx on public.molduras (candidato_id);
+create index if not exists molduras_candidato_id_idx
+  on public.molduras (candidato_id);
 
 alter table public.molduras enable row level security;
 
--- Dono do candidato gerencia as molduras dele
+drop policy if exists "dono gerencia molduras" on public.molduras;
 create policy "dono gerencia molduras"
   on public.molduras
   for all
@@ -38,7 +38,7 @@ create policy "dono gerencia molduras"
     )
   );
 
--- Apoiador (sem login) lê molduras de candidatos ativos
+drop policy if exists "leitura publica de molduras de candidatos ativos" on public.molduras;
 create policy "leitura publica de molduras de candidatos ativos"
   on public.molduras
   for select
@@ -50,3 +50,8 @@ create policy "leitura publica de molduras de candidatos ativos"
         and c.ativo = true
     )
   );
+
+-- Diagnóstico: mostra o que existe
+select m.nome, m.formato, c.slug, c.ativo as candidato_ativo
+from public.molduras m
+join public.candidatos c on c.id = m.candidato_id;

@@ -11,6 +11,7 @@ import type {
 import { templates as todosTemplates } from "@/lib/templates";
 import { criarTemplateMoldura } from "@/lib/templates/moldura";
 import { corDeTexto } from "@/lib/templates/helpers";
+import { supabaseBrowser } from "@/lib/supabase/client";
 import {
   carregarFoto,
   carregarImagemUrl,
@@ -58,11 +59,31 @@ export default function FluxoApoiador({ candidato, molduras }: Props) {
   const [moldurasProntas, setMoldurasProntas] = useState<
     { moldura: Moldura; img: HTMLImageElement }[]
   >([]);
+  // Fallback: se o servidor entregou a página sem molduras (cache),
+  // busca direto do navegador.
+  const [moldurasExtra, setMoldurasExtra] = useState<Moldura[] | null>(null);
 
   useEffect(() => {
+    if (molduras.length > 0) return;
+    supabaseBrowser()
+      .from("molduras")
+      .select("*")
+      .eq("candidato_id", candidato.id)
+      .order("created_at")
+      .then(({ data }) => {
+        if (data && data.length > 0) setMoldurasExtra(data as Moldura[]);
+      });
+  }, [molduras, candidato.id]);
+
+  useEffect(() => {
+    const lista = molduras.length > 0 ? molduras : (moldurasExtra ?? []);
+    if (lista.length === 0) {
+      setMoldurasProntas([]);
+      return;
+    }
     let ativo = true;
     Promise.all(
-      molduras.map(async (m) => {
+      lista.map(async (m) => {
         const img = await carregarImagemUrl(m.arquivo_url);
         return img ? { moldura: m, img } : null;
       })
@@ -76,7 +97,7 @@ export default function FluxoApoiador({ candidato, molduras }: Props) {
     return () => {
       ativo = false;
     };
-  }, [molduras]);
+  }, [molduras, moldurasExtra]);
 
   // Molduras do cliente vêm primeiro; depois os modelos genéricos
   const templatesAtivos = useMemo(() => {
