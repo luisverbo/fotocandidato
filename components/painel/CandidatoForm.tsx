@@ -18,6 +18,12 @@ const CARGOS = [
   "Governador(a)",
 ];
 
+const FORMATOS = [
+  { id: "feed", nome: "Feed", detalhe: "1080×1080" },
+  { id: "perfil", nome: "Perfil", detalhe: "1080×1080, redondo" },
+  { id: "story", nome: "Story", detalhe: "1080×1920" },
+];
+
 interface Props {
   inicial?: Candidato;
 }
@@ -46,6 +52,9 @@ export default function CandidatoForm({ inicial }: Props) {
   );
   const [apenasMolduras, setApenasMolduras] = useState(
     inicial?.apenas_molduras ?? false
+  );
+  const [formatosAtivos, setFormatosAtivos] = useState<string[]>(
+    inicial?.formatos_ativos ?? FORMATOS.map((f) => f.id)
   );
   const [ativo, setAtivo] = useState(inicial?.ativo ?? true);
 
@@ -103,12 +112,23 @@ export default function CandidatoForm({ inicial }: Props) {
     );
   }
 
+  function alternarFormato(id: string) {
+    setFormatosAtivos((atual) =>
+      atual.includes(id) ? atual.filter((f) => f !== id) : [...atual, id]
+    );
+  }
+
   async function salvar(e: React.FormEvent) {
     e.preventDefault();
     setErro(null);
 
     if (templatesAtivos.length === 0 && !apenasMolduras) {
       setErro("Deixe pelo menos um modelo disponível para os apoiadores.");
+      return;
+    }
+
+    if (formatosAtivos.length === 0) {
+      setErro("Deixe pelo menos um formato disponível (Feed, Perfil ou Story).");
       return;
     }
 
@@ -168,42 +188,47 @@ export default function CandidatoForm({ inicial }: Props) {
         logo_url: logoUrl,
         foto_url: fotoUrl,
         templates_ativos: templatesAtivos,
+        formatos_ativos: formatosAtivos,
         apenas_molduras: apenasMolduras,
         ativo,
       };
 
-      // Se o banco ainda não tem a migração 004 (coluna apenas_molduras),
-      // tenta de novo sem a coluna para não travar o cadastro.
-      const { apenas_molduras: _colunaNova, ...dadosSemColuna } = dados;
-      const tentativas: (typeof dados | typeof dadosSemColuna)[] = [
-        dados,
-        dadosSemColuna,
-      ];
+      // Se o banco ainda não tem alguma migração (coluna nova), remove a
+      // coluna que o Postgres reclamou e tenta de novo.
+      const COLUNAS_OPCIONAIS = ["apenas_molduras", "formatos_ativos"];
 
+      let payload: Record<string, unknown> = { ...dados };
       let erroFinal: { code?: string; message?: string } | null = null;
-      for (const d of tentativas) {
+
+      for (let tentativa = 0; tentativa <= COLUNAS_OPCIONAIS.length; tentativa++) {
         if (editando && inicial) {
           const { error } = await supabase
             .from("candidatos")
-            .update(d)
+            .update(payload)
             .eq("id", inicial.id);
           erroFinal = error;
         } else {
           let slug = gerarSlug(dados.nome, dados.numero);
           let { error } = await supabase
             .from("candidatos")
-            .insert({ ...d, slug, user_id: user.id });
+            .insert({ ...payload, slug, user_id: user.id });
           if (error?.code === "23505") {
             slug = `${slug}-${sufixoAleatorio()}`;
             ({ error } = await supabase
               .from("candidatos")
-              .insert({ ...d, slug, user_id: user.id }));
+              .insert({ ...payload, slug, user_id: user.id }));
           }
           erroFinal = error;
         }
-        if (!erroFinal || !erroFinal.message?.includes("apenas_molduras")) {
-          break;
-        }
+
+        if (!erroFinal) break;
+
+        const faltando = COLUNAS_OPCIONAIS.find(
+          (c) => c in payload && erroFinal?.message?.includes(c)
+        );
+        if (!faltando) break;
+        const { [faltando]: _removida, ...resto } = payload;
+        payload = resto;
       }
 
       if (erroFinal) {
@@ -412,6 +437,36 @@ export default function CandidatoForm({ inicial }: Props) {
 
         <fieldset className="rounded-lg border border-zinc-800 p-4">
           <legend className="px-1 text-sm font-semibold text-zinc-400">
+            Formatos disponíveis para os apoiadores
+          </legend>
+          <p className="mb-3 text-xs text-zinc-500">
+            Desmarque um formato para ele nem aparecer na página. Se sobrar
+            só um, o apoiador não vê o seletor — vai direto para o ajuste da
+            foto.
+          </p>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {FORMATOS.map((f) => (
+              <label
+                key={f.id}
+                className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md border border-zinc-800 px-3 text-sm text-zinc-200 hover:bg-zinc-900"
+              >
+                <input
+                  type="checkbox"
+                  checked={formatosAtivos.includes(f.id)}
+                  onChange={() => alternarFormato(f.id)}
+                  className="h-4 w-4 accent-zinc-100"
+                />
+                <span>
+                  {f.nome}{" "}
+                  <span className="text-xs text-zinc-500">{f.detalhe}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        <fieldset className="rounded-lg border border-zinc-800 p-4">
+          <legend className="px-1 text-sm font-semibold text-zinc-400">
             Modelos disponíveis para os apoiadores
           </legend>
 
@@ -427,9 +482,9 @@ export default function CandidatoForm({ inicial }: Props) {
                 Usar somente as molduras prontas
               </strong>
               <span className="text-zinc-500">
-                Esconde os modelos do sistema na página do apoiador. Vale
-                para os formatos que têm moldura enviada — um formato sem
-                moldura continua mostrando os modelos abaixo.
+                Esconde os modelos do sistema na página do apoiador. Um
+                formato sem moldura enviada some da página — envie a moldura
+                de cada formato que quiser oferecer.
               </span>
             </span>
           </label>

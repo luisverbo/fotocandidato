@@ -30,6 +30,14 @@ import GaleriaTemplates from "./GaleriaTemplates";
 
 const AJUSTE_INICIAL: FotoAjuste = { offsetX: 0, offsetY: 0, zoom: 1 };
 
+const FORMATOS_PADRAO: Formato[] = ["feed", "perfil", "story"];
+
+const ROTULO_FORMATO: Record<Formato, string> = {
+  feed: "Feed",
+  perfil: "Perfil",
+  story: "Story",
+};
+
 interface Props {
   candidato: Candidato;
   molduras: Moldura[];
@@ -62,6 +70,9 @@ export default function FluxoApoiador({ candidato, molduras }: Props) {
   // Fallback: se o servidor entregou a página sem molduras (cache),
   // busca direto do navegador.
   const [moldurasExtra, setMoldurasExtra] = useState<Moldura[] | null>(null);
+  const [moldurasCarregadas, setMoldurasCarregadas] = useState(
+    molduras.length > 0
+  );
 
   useEffect(() => {
     if (molduras.length > 0) return;
@@ -72,6 +83,7 @@ export default function FluxoApoiador({ candidato, molduras }: Props) {
       .order("created_at")
       .then(({ data }) => {
         if (data && data.length > 0) setMoldurasExtra(data as Moldura[]);
+        setMoldurasCarregadas(true);
       });
   }, [molduras, candidato.id]);
 
@@ -92,6 +104,7 @@ export default function FluxoApoiador({ candidato, molduras }: Props) {
         setMoldurasProntas(
           resultado.filter(Boolean) as { moldura: Moldura; img: HTMLImageElement }[]
         );
+        setMoldurasCarregadas(true);
       }
     });
     return () => {
@@ -99,25 +112,51 @@ export default function FluxoApoiador({ candidato, molduras }: Props) {
     };
   }, [molduras, moldurasExtra]);
 
+  // Formatos que o organizador deixou ligados. Com "apenas_molduras",
+  // um formato sem moldura enviada nem aparece para o apoiador.
+  const formatosDisponiveis = useMemo(() => {
+    const escolhidos = candidato.formatos_ativos?.length
+      ? candidato.formatos_ativos
+      : FORMATOS_PADRAO;
+    let lista = FORMATOS_PADRAO.filter((f) => escolhidos.includes(f));
+    if (candidato.apenas_molduras && moldurasCarregadas) {
+      const comMoldura = lista.filter((f) =>
+        moldurasProntas.some((m) => m.moldura.formato === f)
+      );
+      if (comMoldura.length > 0) lista = comMoldura;
+    }
+    return lista.length > 0 ? lista : FORMATOS_PADRAO;
+  }, [
+    candidato.formatos_ativos,
+    candidato.apenas_molduras,
+    moldurasProntas,
+    moldurasCarregadas,
+  ]);
+
+  // Se o formato atual saiu da lista, volta para o primeiro disponível.
+  useEffect(() => {
+    if (!formatosDisponiveis.includes(formato)) {
+      setFormato(formatosDisponiveis[0]);
+    }
+  }, [formatosDisponiveis, formato]);
+
   // Molduras do cliente vêm primeiro; depois os modelos genéricos.
-  // Com "apenas_molduras" ligado, formatos que têm moldura mostram só elas.
   const templatesAtivos = useMemo(() => {
     const dasMolduras = moldurasProntas
       .filter((m) => m.moldura.formato === formato)
       .map((m) => criarTemplateMoldura(m.moldura, m.img));
+    if (candidato.apenas_molduras && dasMolduras.length > 0) {
+      return dasMolduras;
+    }
     const genericos = todosTemplates.filter(
       (t) =>
         candidato.templates_ativos.includes(t.id) && t.suporta.includes(formato)
     );
-    let lista =
-      candidato.apenas_molduras && dasMolduras.length > 0
-        ? dasMolduras
-        : [...dasMolduras, ...genericos];
-    if (lista.length === 0) {
-      // Nunca deixa o apoiador sem nenhum modelo
-      lista = todosTemplates.filter((t) => t.suporta.includes(formato));
-    }
-    return lista;
+    const lista = [...dasMolduras, ...genericos];
+    // Nunca deixa o apoiador sem nenhum modelo
+    return lista.length > 0
+      ? lista
+      : todosTemplates.filter((t) => t.suporta.includes(formato));
   }, [
     moldurasProntas,
     candidato.templates_ativos,
@@ -382,33 +421,32 @@ export default function FluxoApoiador({ candidato, molduras }: Props) {
               2. Ajuste e escolha o modelo
             </h2>
 
-            <div
-              className="mt-4 grid grid-cols-3 gap-2"
-              role="group"
-              aria-label="Formato da arte"
-            >
-              {(
-                [
-                  ["feed", "Feed"],
-                  ["perfil", "Perfil"],
-                  ["story", "Story"],
-                ] as [Formato, string][]
-              ).map(([f, rotulo]) => (
-                <button
-                  key={f}
-                  type="button"
-                  aria-pressed={formato === f}
-                  onClick={() => setFormato(f)}
-                  className={`min-h-12 rounded-xl border-2 px-4 font-semibold ${
-                    formato === f
-                      ? "border-neutral-900 bg-neutral-900 text-white"
-                      : "border-neutral-300 text-neutral-700"
-                  }`}
-                >
-                  {rotulo}
-                </button>
-              ))}
-            </div>
+            {formatosDisponiveis.length > 1 && (
+              <div
+                className="mt-4 grid gap-2"
+                style={{
+                  gridTemplateColumns: `repeat(${formatosDisponiveis.length}, minmax(0, 1fr))`,
+                }}
+                role="group"
+                aria-label="Formato da arte"
+              >
+                {formatosDisponiveis.map((f) => (
+                  <button
+                    key={f}
+                    type="button"
+                    aria-pressed={formato === f}
+                    onClick={() => setFormato(f)}
+                    className={`min-h-12 rounded-xl border-2 px-4 font-semibold ${
+                      formato === f
+                        ? "border-neutral-900 bg-neutral-900 text-white"
+                        : "border-neutral-300 text-neutral-700"
+                    }`}
+                  >
+                    {ROTULO_FORMATO[f]}
+                  </button>
+                ))}
+              </div>
+            )}
 
             <div className="mt-5">
               {fontesProntas ? (
@@ -426,19 +464,21 @@ export default function FluxoApoiador({ candidato, molduras }: Props) {
               )}
             </div>
 
-            <div className="mt-4">
-              <GaleriaTemplates
-                templates={templatesAtivos}
-                foto={fotoPosicionada}
-                candidato={arte}
-                formato={formato}
-                selecionado={template.id}
-                onSelecionar={(id) => {
-                  escolheuManual.current = true;
-                  setTemplateId(id);
-                }}
-              />
-            </div>
+            {templatesAtivos.length > 1 && (
+              <div className="mt-4">
+                <GaleriaTemplates
+                  templates={templatesAtivos}
+                  foto={fotoPosicionada}
+                  candidato={arte}
+                  formato={formato}
+                  selecionado={template.id}
+                  onSelecionar={(id) => {
+                    escolheuManual.current = true;
+                    setTemplateId(id);
+                  }}
+                />
+              </div>
+            )}
 
             <button
               type="button"
