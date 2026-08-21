@@ -24,6 +24,7 @@ export default function MoldurasManager({ candidatoId, iniciais }: Props) {
   const [formato, setFormato] = useState<Moldura["formato"]>("feed");
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [sucesso, setSucesso] = useState<string | null>(null);
 
   async function enviar(e: React.FormEvent) {
     e.preventDefault();
@@ -32,6 +33,7 @@ export default function MoldurasManager({ candidatoId, iniciais }: Props) {
       return;
     }
     setErro(null);
+    setSucesso(null);
     setEnviando(true);
     const supabase = supabaseBrowser();
 
@@ -74,6 +76,9 @@ export default function MoldurasManager({ candidatoId, iniciais }: Props) {
       setMolduras([...molduras, data]);
       setArquivo(null);
       setNome("");
+      setSucesso(
+        `Moldura adicionada! Ela já aparece em primeiro na galeria do link público, no formato ${data.formato.toUpperCase()}. A página pública pode levar até 1 minuto para atualizar.`
+      );
     } finally {
       setEnviando(false);
     }
@@ -98,9 +103,16 @@ export default function MoldurasManager({ candidatoId, iniciais }: Props) {
         Molduras prontas (arte final do cliente)
       </h2>
       <p className="mt-1 text-xs text-zinc-500">
-        PNG com fundo transparente onde a foto do apoiador aparece. A foto
+        PNG com fundo transparente onde a foto do apoiador aparece — a foto
         entra atrás da arte. Tamanhos: Feed/Perfil 1080×1080 · Story
-        1080×1920. As molduras aparecem em primeiro na página do candidato.
+        1080×1920.
+      </p>
+      <p className="mt-1 text-xs text-zinc-500">
+        <strong className="text-zinc-400">Onde aparece:</strong> no link
+        público do candidato (botão “Abrir página” ali em cima). O apoiador
+        coloca a foto e a moldura já vem selecionada, em primeiro na galeria
+        de modelos — mas só no formato escolhido aqui (uma moldura de Feed
+        não aparece no Story).
       </p>
 
       {molduras.length > 0 && (
@@ -188,6 +200,11 @@ export default function MoldurasManager({ candidatoId, iniciais }: Props) {
       {erro && (
         <p role="alert" className="mt-3 text-sm font-semibold text-red-400">
           {erro}
+        </p>
+      )}
+      {sucesso && (
+        <p role="status" className="mt-3 text-sm font-semibold text-emerald-400">
+          {sucesso}
         </p>
       )}
     </section>
