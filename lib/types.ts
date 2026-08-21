@@ -12,6 +12,7 @@ export interface Candidato {
   logo_url: string | null;
   foto_url: string | null;
   templates_ativos: string[];
+  apenas_molduras: boolean;
   ativo: boolean;
   created_at: string;
 }

@@ -99,7 +99,8 @@ export default function FluxoApoiador({ candidato, molduras }: Props) {
     };
   }, [molduras, moldurasExtra]);
 
-  // Molduras do cliente vêm primeiro; depois os modelos genéricos
+  // Molduras do cliente vêm primeiro; depois os modelos genéricos.
+  // Com "apenas_molduras" ligado, formatos que têm moldura mostram só elas.
   const templatesAtivos = useMemo(() => {
     const dasMolduras = moldurasProntas
       .filter((m) => m.moldura.formato === formato)
@@ -108,8 +109,21 @@ export default function FluxoApoiador({ candidato, molduras }: Props) {
       (t) =>
         candidato.templates_ativos.includes(t.id) && t.suporta.includes(formato)
     );
-    return [...dasMolduras, ...genericos];
-  }, [moldurasProntas, candidato.templates_ativos, formato]);
+    let lista =
+      candidato.apenas_molduras && dasMolduras.length > 0
+        ? dasMolduras
+        : [...dasMolduras, ...genericos];
+    if (lista.length === 0) {
+      // Nunca deixa o apoiador sem nenhum modelo
+      lista = todosTemplates.filter((t) => t.suporta.includes(formato));
+    }
+    return lista;
+  }, [
+    moldurasProntas,
+    candidato.templates_ativos,
+    candidato.apenas_molduras,
+    formato,
+  ]);
 
   const [templateId, setTemplateId] = useState<string>(
     () => templatesAtivos[0]?.id ?? "faixa"

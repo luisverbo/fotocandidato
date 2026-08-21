@@ -44,6 +44,9 @@ export default function CandidatoForm({ inicial }: Props) {
   const [templatesAtivos, setTemplatesAtivos] = useState<string[]>(
     inicial?.templates_ativos ?? templates.map((t) => t.id)
   );
+  const [apenasMolduras, setApenasMolduras] = useState(
+    inicial?.apenas_molduras ?? false
+  );
   const [ativo, setAtivo] = useState(inicial?.ativo ?? true);
 
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -104,7 +107,7 @@ export default function CandidatoForm({ inicial }: Props) {
     e.preventDefault();
     setErro(null);
 
-    if (templatesAtivos.length === 0) {
+    if (templatesAtivos.length === 0 && !apenasMolduras) {
       setErro("Deixe pelo menos um modelo disponível para os apoiadores.");
       return;
     }
@@ -165,33 +168,51 @@ export default function CandidatoForm({ inicial }: Props) {
         logo_url: logoUrl,
         foto_url: fotoUrl,
         templates_ativos: templatesAtivos,
+        apenas_molduras: apenasMolduras,
         ativo,
       };
 
-      if (editando && inicial) {
-        const { error } = await supabase
-          .from("candidatos")
-          .update(dados)
-          .eq("id", inicial.id);
-        if (error) {
-          setErro("Não foi possível salvar. Tente novamente.");
-          return;
-        }
-      } else {
-        let slug = gerarSlug(dados.nome, dados.numero);
-        let { error } = await supabase
-          .from("candidatos")
-          .insert({ ...dados, slug, user_id: user.id });
-        if (error?.code === "23505") {
-          slug = `${slug}-${sufixoAleatorio()}`;
-          ({ error } = await supabase
+      // Se o banco ainda não tem a migração 004 (coluna apenas_molduras),
+      // tenta de novo sem a coluna para não travar o cadastro.
+      const { apenas_molduras: _colunaNova, ...dadosSemColuna } = dados;
+      const tentativas: (typeof dados | typeof dadosSemColuna)[] = [
+        dados,
+        dadosSemColuna,
+      ];
+
+      let erroFinal: { code?: string; message?: string } | null = null;
+      for (const d of tentativas) {
+        if (editando && inicial) {
+          const { error } = await supabase
             .from("candidatos")
-            .insert({ ...dados, slug, user_id: user.id }));
+            .update(d)
+            .eq("id", inicial.id);
+          erroFinal = error;
+        } else {
+          let slug = gerarSlug(dados.nome, dados.numero);
+          let { error } = await supabase
+            .from("candidatos")
+            .insert({ ...d, slug, user_id: user.id });
+          if (error?.code === "23505") {
+            slug = `${slug}-${sufixoAleatorio()}`;
+            ({ error } = await supabase
+              .from("candidatos")
+              .insert({ ...d, slug, user_id: user.id }));
+          }
+          erroFinal = error;
         }
-        if (error) {
-          setErro("Não foi possível cadastrar. Confira os dados e tente de novo.");
-          return;
+        if (!erroFinal || !erroFinal.message?.includes("apenas_molduras")) {
+          break;
         }
+      }
+
+      if (erroFinal) {
+        setErro(
+          editando
+            ? "Não foi possível salvar. Tente novamente."
+            : "Não foi possível cadastrar. Confira os dados e tente de novo."
+        );
+        return;
       }
 
       router.push("/painel");
@@ -393,7 +414,32 @@ export default function CandidatoForm({ inicial }: Props) {
           <legend className="px-1 text-sm font-semibold text-zinc-400">
             Modelos disponíveis para os apoiadores
           </legend>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+
+          <label className="mb-3 flex min-h-11 cursor-pointer items-start gap-3 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-200">
+            <input
+              type="checkbox"
+              checked={apenasMolduras}
+              onChange={(e) => setApenasMolduras(e.target.checked)}
+              className="mt-0.5 h-5 w-5 accent-emerald-500"
+            />
+            <span>
+              <strong className="block">
+                Usar somente as molduras prontas
+              </strong>
+              <span className="text-zinc-500">
+                Esconde os modelos do sistema na página do apoiador. Vale
+                para os formatos que têm moldura enviada — um formato sem
+                moldura continua mostrando os modelos abaixo.
+              </span>
+            </span>
+          </label>
+
+          <div
+            className={`grid grid-cols-2 gap-2 sm:grid-cols-3 ${
+              apenasMolduras ? "pointer-events-none opacity-40" : ""
+            }`}
+            aria-disabled={apenasMolduras}
+          >
             {templates.map((t) => (
               <label
                 key={t.id}
@@ -404,6 +450,7 @@ export default function CandidatoForm({ inicial }: Props) {
                   checked={templatesAtivos.includes(t.id)}
                   onChange={() => alternarTemplate(t.id)}
                   className="h-4 w-4 accent-zinc-100"
+                  disabled={apenasMolduras}
                 />
                 {t.nome}
               </label>
