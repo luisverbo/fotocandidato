@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import type { Moldura } from "@/lib/types";
+import { prepararImagemUpload } from "@/lib/upload";
 
 const FORMATOS: { valor: Moldura["formato"]; rotulo: string }[] = [
   { valor: "feed", rotulo: "Feed (1080×1080)" },
@@ -43,13 +44,14 @@ export default function MoldurasManager({ candidatoId, iniciais }: Props) {
       } = await supabase.auth.getUser();
       if (!user) return;
 
-      const extensao = arquivo.type === "image/webp" ? "webp" : "png";
+      const arquivoPronto = await prepararImagemUpload(arquivo, 1080);
+      const extensao = arquivoPronto.type === "image/webp" ? "webp" : "png";
       const caminho = `${user.id}/moldura-${crypto.randomUUID()}.${extensao}`;
       const { error: erroUpload } = await supabase.storage
         .from("logos")
-        .upload(caminho, arquivo, { contentType: arquivo.type });
+        .upload(caminho, arquivoPronto, { contentType: arquivoPronto.type });
       if (erroUpload) {
-        setErro("Não foi possível enviar o arquivo. Tente novamente.");
+        setErro(`Não foi possível enviar o arquivo: ${erroUpload.message}`);
         return;
       }
       const url = supabase.storage.from("logos").getPublicUrl(caminho).data

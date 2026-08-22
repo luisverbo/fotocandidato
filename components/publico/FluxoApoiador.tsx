@@ -326,7 +326,7 @@ export default function FluxoApoiador({ candidato, molduras }: Props) {
           <img
             src={candidato.foto_url}
             alt={`Foto de ${candidato.nome}`}
-            className="mx-auto mb-3 max-h-56 w-auto object-contain"
+            className="mx-auto mb-3 max-h-[45dvh] w-auto max-w-full object-contain"
           />
         )}
 

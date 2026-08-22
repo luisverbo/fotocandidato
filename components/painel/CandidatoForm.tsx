@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import { gerarSlug, sufixoAleatorio } from "@/lib/slug";
+import { prepararImagemUpload } from "@/lib/upload";
 import { templates } from "@/lib/templates";
 import type { Candidato } from "@/lib/types";
 import PreviewArte, { type DadosPreview } from "./PreviewArte";
@@ -160,12 +161,13 @@ export default function CandidatoForm({ inicial }: Props) {
       // Upload da logo, se houver
       let logoUrl: string | null = logoRemovida ? null : (inicial?.logo_url ?? null);
       if (logoFile) {
+        const arquivoLogo = await prepararImagemUpload(logoFile, 800);
         const caminho = `${user.id}/${crypto.randomUUID()}.png`;
         const { error: erroUpload } = await supabase.storage
           .from("logos")
-          .upload(caminho, logoFile, { contentType: logoFile.type });
+          .upload(caminho, arquivoLogo, { contentType: arquivoLogo.type });
         if (erroUpload) {
-          setErro("Não foi possível enviar a logo. Tente novamente.");
+          setErro(`Não foi possível enviar a logo: ${erroUpload.message}`);
           return;
         }
         logoUrl = supabase.storage.from("logos").getPublicUrl(caminho).data
@@ -177,13 +179,16 @@ export default function CandidatoForm({ inicial }: Props) {
         ? null
         : (inicial?.foto_url ?? null);
       if (fotoFile) {
-        const extensao = fotoFile.type === "image/png" ? "png" : "jpg";
+        const arquivoFoto = await prepararImagemUpload(fotoFile, 1400);
+        const extensao = arquivoFoto.type === "image/png" ? "png" : "jpg";
         const caminho = `${user.id}/foto-${crypto.randomUUID()}.${extensao}`;
         const { error: erroUpload } = await supabase.storage
           .from("logos")
-          .upload(caminho, fotoFile, { contentType: fotoFile.type });
+          .upload(caminho, arquivoFoto, { contentType: arquivoFoto.type });
         if (erroUpload) {
-          setErro("Não foi possível enviar a foto do candidato. Tente novamente.");
+          setErro(
+            `Não foi possível enviar a foto do candidato: ${erroUpload.message}`
+          );
           return;
         }
         fotoUrl = supabase.storage.from("logos").getPublicUrl(caminho).data
@@ -402,7 +407,11 @@ export default function CandidatoForm({ inicial }: Props) {
                 <img
                   src={fotoPreview}
                   alt="Prévia da foto do candidato"
-                  className="h-14 w-14 rounded-full border border-zinc-700 object-cover"
+                  className={`border border-zinc-700 bg-zinc-900 ${
+                    fotoInteira
+                      ? "h-24 w-auto max-w-[140px] rounded object-contain"
+                      : "h-14 w-14 rounded-full object-cover"
+                  }`}
                 />
               )}
               <input
