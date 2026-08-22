@@ -67,6 +67,19 @@ export default function CandidatoForm({ inicial }: Props) {
     inicial?.foto_url ?? null
   );
   const [fotoRemovida, setFotoRemovida] = useState(false);
+  const [fotoInteira, setFotoInteira] = useState(
+    inicial?.foto_inteira ?? false
+  );
+
+  const [parceiroNome, setParceiroNome] = useState(
+    inicial?.parceiro_nome ?? ""
+  );
+  const [parceiroNumero, setParceiroNumero] = useState(
+    inicial?.parceiro_numero ?? ""
+  );
+  const [parceiroCargo, setParceiroCargo] = useState(
+    inicial?.parceiro_cargo ?? ""
+  );
 
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -187,6 +200,10 @@ export default function CandidatoForm({ inicial }: Props) {
         cor_secundaria: corSecundaria,
         logo_url: logoUrl,
         foto_url: fotoUrl,
+        foto_inteira: fotoInteira,
+        parceiro_nome: parceiroNome.trim() || null,
+        parceiro_numero: parceiroNumero.trim() || null,
+        parceiro_cargo: parceiroCargo.trim() || null,
         templates_ativos: templatesAtivos,
         formatos_ativos: formatosAtivos,
         apenas_molduras: apenasMolduras,
@@ -195,12 +212,23 @@ export default function CandidatoForm({ inicial }: Props) {
 
       // Se o banco ainda não tem alguma migração (coluna nova), remove a
       // coluna que o Postgres reclamou e tenta de novo.
-      const COLUNAS_OPCIONAIS = ["apenas_molduras", "formatos_ativos"];
+      const COLUNAS_OPCIONAIS = [
+        "apenas_molduras",
+        "formatos_ativos",
+        "foto_inteira",
+        "parceiro_nome",
+        "parceiro_numero",
+        "parceiro_cargo",
+      ];
 
       let payload: Record<string, unknown> = { ...dados };
       let erroFinal: { code?: string; message?: string } | null = null;
 
-      for (let tentativa = 0; tentativa <= COLUNAS_OPCIONAIS.length; tentativa++) {
+      for (
+        let tentativa = 0;
+        tentativa <= COLUNAS_OPCIONAIS.length;
+        tentativa++
+      ) {
         if (editando && inicial) {
           const { error } = await supabase
             .from("candidatos")
@@ -405,6 +433,21 @@ export default function CandidatoForm({ inicial }: Props) {
                 </button>
               )}
             </div>
+            <label className="mt-2 flex min-h-11 cursor-pointer items-start gap-3 text-sm text-zinc-200">
+              <input
+                type="checkbox"
+                checked={fotoInteira}
+                onChange={(e) => setFotoInteira(e.target.checked)}
+                className="mt-0.5 h-5 w-5 accent-emerald-500"
+              />
+              <span>
+                <strong className="block">Mostrar a foto inteira</strong>
+                <span className="text-zinc-500">
+                  Para arte da chapa (os dois candidatos, corpo inteiro). Sem
+                  marcar, a foto vira um círculo pequeno ao lado do nome.
+                </span>
+              </span>
+            </label>
           </div>
 
           <div className="sm:col-span-2">
@@ -434,6 +477,51 @@ export default function CandidatoForm({ inicial }: Props) {
             </div>
           </div>
         </div>
+
+        <fieldset className="rounded-lg border border-zinc-800 p-4">
+          <legend className="px-1 text-sm font-semibold text-zinc-400">
+            Chapa — segundo candidato (opcional)
+          </legend>
+          <p className="mb-3 text-xs text-zinc-500">
+            Aparece no topo da página pública, embaixo do candidato
+            principal: “Apoie ERIKA COELHO · 70040” e, na sequência,
+            “WILLIAN COELHO · 7040”. A arte em si continua vindo da moldura
+            que você enviar.
+          </p>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <label className="block">
+              <span className={rotulo}>Nome</span>
+              <input
+                value={parceiroNome}
+                onChange={(e) => setParceiroNome(e.target.value)}
+                className={campo}
+                placeholder="Willian Coelho"
+              />
+            </label>
+            <label className="block">
+              <span className={rotulo}>Número</span>
+              <input
+                inputMode="numeric"
+                value={parceiroNumero}
+                onChange={(e) =>
+                  setParceiroNumero(e.target.value.replace(/\D/g, ""))
+                }
+                className={campo}
+                placeholder="7040"
+              />
+            </label>
+            <label className="block">
+              <span className={rotulo}>Cargo</span>
+              <input
+                list="lista-cargos"
+                value={parceiroCargo}
+                onChange={(e) => setParceiroCargo(e.target.value)}
+                className={campo}
+                placeholder="Deputado(a) Federal"
+              />
+            </label>
+          </div>
+        </fieldset>
 
         <fieldset className="rounded-lg border border-zinc-800 p-4">
           <legend className="px-1 text-sm font-semibold text-zinc-400">

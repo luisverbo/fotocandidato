@@ -11,6 +11,10 @@ export interface Candidato {
   cor_secundaria: string;
   logo_url: string | null;
   foto_url: string | null;
+  foto_inteira: boolean;
+  parceiro_nome: string | null;
+  parceiro_numero: string | null;
+  parceiro_cargo: string | null;
   templates_ativos: string[];
   formatos_ativos: string[];
   apenas_molduras: boolean;

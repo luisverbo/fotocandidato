@@ -32,10 +32,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     };
   }
 
-  const titulo = `${candidato.nome} ${candidato.numero} — Coloque sua foto`;
+  const chapa = candidato.parceiro_nome
+    ? ` e ${candidato.parceiro_nome}${
+        candidato.parceiro_numero ? ` ${candidato.parceiro_numero}` : ""
+      }`
+    : "";
+  const titulo = `${candidato.nome} ${candidato.numero}${chapa} — Coloque sua foto`;
   const descricao = `Apoie ${candidato.nome} (${candidato.cargo}${
     candidato.partido ? `, ${candidato.partido}` : ""
-  }). Coloque sua foto na arte da campanha e compartilhe.`;
+  })${chapa}. Coloque sua foto na arte da campanha e compartilhe.`;
 
   return {
     title: titulo,

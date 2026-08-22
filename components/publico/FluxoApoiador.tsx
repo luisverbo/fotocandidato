@@ -10,7 +10,7 @@ import type {
 } from "@/lib/templates/types";
 import { templates as todosTemplates } from "@/lib/templates";
 import { criarTemplateMoldura } from "@/lib/templates/moldura";
-import { corDeTexto } from "@/lib/templates/helpers";
+import { corDeTexto, rgba } from "@/lib/templates/helpers";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import {
   carregarFoto,
@@ -320,8 +320,24 @@ export default function FluxoApoiador({ candidato, molduras }: Props) {
         className="px-6 py-5"
         style={{ backgroundColor: corHeader, color: corHeaderTexto }}
       >
-        <div className="flex items-center justify-center gap-4">
-          {candidato.foto_url && (
+        {/* Foto inteira (arte da chapa) ocupa a largura toda */}
+        {candidato.foto_url && candidato.foto_inteira && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={candidato.foto_url}
+            alt={`Foto de ${candidato.nome}`}
+            className="mx-auto mb-3 max-h-56 w-auto object-contain"
+          />
+        )}
+
+        <div
+          className={`flex items-center gap-4 ${
+            candidato.foto_url && !candidato.foto_inteira
+              ? "justify-center"
+              : "justify-center text-center"
+          }`}
+        >
+          {candidato.foto_url && !candidato.foto_inteira && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={candidato.foto_url}
@@ -330,7 +346,13 @@ export default function FluxoApoiador({ candidato, molduras }: Props) {
               style={{ borderColor: corHeaderTexto }}
             />
           )}
-          <div className={candidato.foto_url ? "text-left" : "text-center"}>
+          <div
+            className={
+              candidato.foto_url && !candidato.foto_inteira
+                ? "text-left"
+                : "text-center"
+            }
+          >
             <p className="text-sm font-semibold opacity-90">Apoie</p>
             <h1 className="font-display text-3xl font-extrabold uppercase leading-tight">
               {candidato.nome} · {candidato.numero}
@@ -339,6 +361,26 @@ export default function FluxoApoiador({ candidato, molduras }: Props) {
               {candidato.cargo}
               {candidato.partido ? ` · ${candidato.partido}` : ""}
             </p>
+
+            {/* Segundo candidato da chapa */}
+            {candidato.parceiro_nome && (
+              <div
+                className="mt-3 border-t pt-3"
+                style={{ borderColor: rgba(corHeaderTexto, 0.3) }}
+              >
+                <p className="font-display text-2xl font-extrabold uppercase leading-tight">
+                  {candidato.parceiro_nome}
+                  {candidato.parceiro_numero
+                    ? ` · ${candidato.parceiro_numero}`
+                    : ""}
+                </p>
+                {candidato.parceiro_cargo && (
+                  <p className="text-sm font-semibold opacity-90">
+                    {candidato.parceiro_cargo}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </header>
