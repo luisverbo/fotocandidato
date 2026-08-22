@@ -10,7 +10,7 @@ import type {
 } from "@/lib/templates/types";
 import { templates as todosTemplates } from "@/lib/templates";
 import { criarTemplateMoldura } from "@/lib/templates/moldura";
-import { corDeTexto, rgba } from "@/lib/templates/helpers";
+import { corDeTexto } from "@/lib/templates/helpers";
 import { supabaseBrowser } from "@/lib/supabase/client";
 import {
   carregarFoto,
@@ -326,7 +326,7 @@ export default function FluxoApoiador({ candidato, molduras }: Props) {
           <img
             src={candidato.foto_url}
             alt={`Foto de ${candidato.nome}`}
-            className="mx-auto mb-3 max-h-[45dvh] w-auto max-w-full object-contain"
+            className="mx-auto mb-3 max-h-[28dvh] w-auto max-w-full object-contain"
           />
         )}
 
@@ -362,11 +362,14 @@ export default function FluxoApoiador({ candidato, molduras }: Props) {
               {candidato.partido ? ` · ${candidato.partido}` : ""}
             </p>
 
-            {/* Segundo candidato da chapa */}
+            {/* Segundo candidato da chapa, na cor secundária */}
             {candidato.parceiro_nome && (
               <div
-                className="mt-3 border-t pt-3"
-                style={{ borderColor: rgba(corHeaderTexto, 0.3) }}
+                className="mt-3 rounded-xl px-4 py-2"
+                style={{
+                  backgroundColor: candidato.cor_secundaria,
+                  color: corDeTexto(candidato.cor_secundaria),
+                }}
               >
                 <p className="font-display text-2xl font-extrabold uppercase leading-tight">
                   {candidato.parceiro_nome}
