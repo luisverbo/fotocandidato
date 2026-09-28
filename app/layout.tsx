@@ -11,6 +11,10 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: "#ffffff",
+  // O Chrome no Android inverte as cores de sites que não declaram o
+  // esquema quando o celular está no modo escuro. As páginas aqui são
+  // claras por desenho (o painel usa fundo escuro explícito).
+  colorScheme: "light",
 };
 
 export default function RootLayout({

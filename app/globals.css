@@ -5,15 +5,26 @@
 :root {
   --font-display: "Barlow Condensed", "Arial Narrow", sans-serif;
   --font-text: "Archivo", system-ui, -apple-system, sans-serif;
+
+  /* As páginas são claras por desenho. Sem isto, o Chrome no Android
+     aplica o tema escuro automático e inverte tudo. */
+  color-scheme: light;
 }
 
 html {
   font-family: var(--font-text);
   -webkit-text-size-adjust: 100%;
+  background-color: #ffffff;
 }
 
 body {
   min-height: 100dvh;
+  background-color: #ffffff;
+}
+
+/* Painel: fundo escuro por escolha, não por inversão do navegador */
+.painel-escuro {
+  color-scheme: dark;
 }
 
 /* Foco de teclado visível em todos os controles */
