@@ -149,11 +149,28 @@ export interface ResultadoImportacao {
 export async function buscarCandidatosTse(
   ano: number,
   uf: string,
-  cargo: CargoCola
+  cargo: CargoCola,
+  // Quando informado, pula a descoberta e usa estes IDs de eleição.
+  idsEleicao?: number[]
 ): Promise<ResultadoImportacao> {
   const abrangencia = cargo === "presidente" ? "BR" : uf;
   const codigo = CODIGO_CARGO[cargo];
-  const eleicoes = await listarEleicoes(ano);
+  const eleicoes =
+    idsEleicao && idsEleicao.length > 0
+      ? idsEleicao
+      : await listarEleicoes(ano);
+
+  if (eleicoes.length === 0) {
+    return {
+      candidatos: [],
+      tentativas: [
+        {
+          url: `${BASE}/eleicao/eleicoes-anos/${ano}`,
+          encontrados: -1,
+        },
+      ],
+    };
+  }
 
   const tentativas: { url: string; encontrados: number }[] = [];
   const porNumero = new Map<string, CandidatoTse>();

@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ erro: "Faça login no painel." }, { status: 401 });
   }
 
-  let corpo: { ano?: number; uf?: string; cargo?: string };
+  let corpo: { ano?: number; uf?: string; cargo?: string; idsEleicao?: number[] };
   try {
     corpo = await request.json();
   } catch {
@@ -45,14 +45,25 @@ export async function POST(request: Request) {
     );
   }
 
-  const { candidatos, tentativas } = await buscarCandidatosTse(ano, uf, cargo);
+  const idsEleicao = Array.isArray(corpo.idsEleicao)
+    ? corpo.idsEleicao.map(Number).filter(Number.isFinite)
+    : undefined;
+
+  const { candidatos, tentativas } = await buscarCandidatosTse(
+    ano,
+    uf,
+    cargo,
+    idsEleicao
+  );
 
   if (candidatos.length === 0) {
     return NextResponse.json({
       ok: false,
       gravados: 0,
       erro:
-        "O TSE não retornou candidatos para este cargo. Pode ser que a lista ainda não esteja publicada.",
+        tentativas[0]?.encontrados === -1
+          ? "Não foi possível descobrir o ID da eleição no TSE. Use o Diagnóstico e informe o ID manualmente."
+          : "O TSE não retornou candidatos para este cargo.",
       tentativas,
     });
   }

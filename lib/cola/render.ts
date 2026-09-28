@@ -12,9 +12,10 @@ import { ANO_ELEICAO, type DefinicaoCargo } from "./cargos";
 export const COLA_W = 1240;
 export const COLA_H = 1754;
 
-const TINTA = "#111827";
-const CINZA = "#6b7280";
-const DESTAQUE = "#1d4ed8";
+const TINTA = "#0f172a";
+const CINZA = "#64748b";
+const AZUL = "#1d4ed8";
+const AZUL_CLARO = "#eff6ff";
 const ALERTA = "#b91c1c";
 
 export interface LinhaCola {
@@ -25,7 +26,7 @@ export interface LinhaCola {
   foto: CanvasImageSource | null;
 }
 
-function drawFotoQuadrada(
+function drawFoto(
   ctx: CanvasRenderingContext2D,
   foto: CanvasImageSource | null,
   x: number,
@@ -34,7 +35,7 @@ function drawFotoQuadrada(
   inicial: string
 ) {
   ctx.save();
-  pathRoundRect(ctx, x, y, lado, lado, 12);
+  pathRoundRect(ctx, x, y, lado, lado, lado * 0.22);
   ctx.clip();
   if (foto) {
     const el = foto as HTMLImageElement;
@@ -49,19 +50,15 @@ function drawFotoQuadrada(
       h * escala
     );
   } else {
-    ctx.fillStyle = "#e5e7eb";
+    ctx.fillStyle = "#e2e8f0";
     ctx.fillRect(x, y, lado, lado);
-    ctx.fillStyle = "#9ca3af";
-    ctx.font = fontDisplay(lado * 0.5, 800);
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = fontDisplay(lado * 0.52, 800);
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(inicial, x + lado / 2, y + lado / 2);
+    ctx.fillText(inicial, x + lado / 2, y + lado / 2 + lado * 0.03);
   }
   ctx.restore();
-  ctx.strokeStyle = "#d1d5db";
-  ctx.lineWidth = 2;
-  pathRoundRect(ctx, x, y, lado, lado, 12);
-  ctx.stroke();
 }
 
 export function desenharCola(
@@ -77,136 +74,161 @@ export function desenharCola(
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, COLA_W, COLA_H);
 
-  const margem = 70;
+  const margem = 64;
   const larguraUtil = COLA_W - margem * 2;
 
-  // ---------- Cabeçalho ----------
+  // ---------- Faixa do cabeçalho ----------
+  const alturaTopo = 210;
+  ctx.fillStyle = TINTA;
+  ctx.fillRect(0, 0, COLA_W, alturaTopo);
+  ctx.fillStyle = AZUL;
+  ctx.fillRect(0, alturaTopo - 10, COLA_W, 10);
+
   ctx.textAlign = "left";
   ctx.textBaseline = "alphabetic";
-  ctx.fillStyle = TINTA;
-  ctx.font = fontDisplay(76, 800);
-  ctx.fillText("MINHA COLA DE VOTAÇÃO", margem, 118);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = fontDisplay(80, 800);
+  ctx.fillText("MINHA COLA DE VOTAÇÃO", margem, 116);
 
-  ctx.fillStyle = CINZA;
-  ctx.font = fontTexto(28, 600);
-  ctx.fillText(`Eleições ${ANO_ELEICAO} · ${uf}`, margem, 162);
+  ctx.fillStyle = "#cbd5e1";
+  ctx.font = fontTexto(26, 600);
+  ctx.fillText(`Eleições ${ANO_ELEICAO}`, margem, 162);
 
-  ctx.fillStyle = DESTAQUE;
-  ctx.fillRect(margem, 186, larguraUtil, 5);
-
-  // ---------- Aviso legal ----------
-  const avisoY = 216;
-  const avisoH = 150;
-  pathRoundRect(ctx, margem, avisoY, larguraUtil, avisoH, 16);
-  ctx.fillStyle = "#fef2f2";
+  // Selo da UF
+  const seloW = 118;
+  const seloH = 76;
+  pathRoundRect(ctx, COLA_W - margem - seloW, 74, seloW, seloH, 14);
+  ctx.fillStyle = AZUL;
   ctx.fill();
-  ctx.strokeStyle = ALERTA;
-  ctx.lineWidth = 3;
-  ctx.stroke();
-
-  ctx.fillStyle = ALERTA;
-  ctx.font = fontTexto(30, 700);
-  ctx.fillText("IMPRIMA E LEVE NO PAPEL", margem + 28, avisoY + 50);
-
-  ctx.fillStyle = "#7f1d1d";
-  ctx.font = fontTexto(23, 500);
-  ctx.fillText(
-    "Não é permitido usar o celular dentro da cabine de votação.",
-    margem + 28,
-    avisoY + 90
-  );
-  ctx.fillText(
-    "O aparelho fica com o mesário. Anotação em papel é permitida.",
-    margem + 28,
-    avisoY + 124
-  );
+  ctx.fillStyle = "#ffffff";
+  ctx.font = fontDisplay(52, 800);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(uf, COLA_W - margem - seloW / 2, 74 + seloH / 2 + 3);
 
   // ---------- Linhas dos cargos ----------
-  const topo = avisoY + avisoH + 40;
-  const alturaLinha = Math.min(
-    196,
-    (COLA_H - topo - 120) / Math.max(linhas.length, 1)
-  );
+  const avisoH = 176;
+  const topo = alturaTopo + 44;
+  const espacoLista = COLA_H - topo - avisoH - 96;
+  const alturaLinha = Math.min(188, espacoLista / Math.max(linhas.length, 1));
 
   linhas.forEach((linha, indice) => {
     const y = topo + indice * alturaLinha;
-    const alturaCaixa = alturaLinha - 16;
+    const caixaH = alturaLinha - 14;
 
-    pathRoundRect(ctx, margem, y, larguraUtil, alturaCaixa, 16);
-    ctx.fillStyle = indice % 2 === 0 ? "#f9fafb" : "#ffffff";
+    pathRoundRect(ctx, margem, y, larguraUtil, caixaH, 18);
+    ctx.fillStyle = "#ffffff";
     ctx.fill();
-    ctx.strokeStyle = "#e5e7eb";
+    ctx.strokeStyle = "#e2e8f0";
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Ordem de votação
-    ctx.fillStyle = DESTAQUE;
-    ctx.font = fontDisplay(40, 800);
+    // Faixa azul da ordem de votação
+    ctx.save();
+    pathRoundRect(ctx, margem, y, larguraUtil, caixaH, 18);
+    ctx.clip();
+    ctx.fillStyle = AZUL_CLARO;
+    ctx.fillRect(margem, y, 74, caixaH);
+    ctx.fillStyle = AZUL;
+    ctx.fillRect(margem, y, 6, caixaH);
+    ctx.restore();
+
+    ctx.fillStyle = AZUL;
+    ctx.font = fontDisplay(46, 800);
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(String(indice + 1), margem + 38, y + alturaCaixa / 2);
+    ctx.fillText(String(indice + 1), margem + 40, y + caixaH / 2);
 
-    const ladoFoto = alturaCaixa - 40;
-    const xFoto = margem + 72;
-    drawFotoQuadrada(
+    const ladoFoto = caixaH - 44;
+    const xFoto = margem + 96;
+    drawFoto(
       ctx,
       linha.foto,
       xFoto,
-      y + 20,
+      y + 22,
       ladoFoto,
       (linha.candidato?.nome_urna ?? "?").charAt(0).toUpperCase()
     );
 
-    const xTexto = xFoto + ladoFoto + 26;
     const digitos = (linha.candidato?.numero ?? linha.numeroDigitado).replace(
       /\D/g,
       ""
     );
-    const tecla = 62;
+    const tecla = 64;
     const larguraTeclas = digitos.length
       ? digitos.length * tecla + (digitos.length - 1) * tecla * 0.12
       : 0;
-    const larguraTexto = larguraUtil - (xTexto - margem) - larguraTeclas - 50;
+
+    const xTexto = xFoto + ladoFoto + 28;
+    const larguraTexto = larguraUtil - (xTexto - margem) - larguraTeclas - 56;
 
     ctx.textAlign = "left";
     ctx.fillStyle = CINZA;
-    ctx.font = fontTexto(22, 700);
-    ctx.fillText(linha.rotulo.toUpperCase(), xTexto, y + 48);
+    ctx.font = fontTexto(21, 700);
+    ctx.textBaseline = "alphabetic";
+    ctx.fillText(linha.rotulo.toUpperCase(), xTexto, y + 46);
 
     ctx.fillStyle = TINTA;
     const nome = (linha.candidato?.nome_urna ?? "Não preenchido").toUpperCase();
-    ajustarFonte(ctx, nome, (px) => fontDisplay(px, 800), 54, larguraTexto);
+    ajustarFonte(ctx, nome, (px) => fontDisplay(px, 800), 52, larguraTexto);
     ctx.textBaseline = "middle";
-    ctx.fillText(nome, xTexto, y + alturaCaixa / 2 + 14);
+    ctx.fillText(nome, xTexto, y + caixaH / 2 + 12);
 
     if (linha.candidato?.partido) {
-      ctx.fillStyle = CINZA;
-      ctx.font = fontTexto(22, 600);
       ctx.textBaseline = "alphabetic";
-      ctx.fillText(linha.candidato.partido, xTexto, y + alturaCaixa - 26);
+      ctx.font = fontTexto(20, 700);
+      const largura = ctx.measureText(linha.candidato.partido).width + 28;
+      pathRoundRect(ctx, xTexto, y + caixaH - 52, largura, 34, 17);
+      ctx.fillStyle = "#f1f5f9";
+      ctx.fill();
+      ctx.fillStyle = CINZA;
+      ctx.textBaseline = "middle";
+      ctx.fillText(
+        linha.candidato.partido,
+        xTexto + 14,
+        y + caixaH - 52 + 18
+      );
     }
 
     if (digitos.length > 0) {
       drawTeclasUrna(
         ctx,
         digitos,
-        margem + larguraUtil - 30 - larguraTeclas / 2,
-        y + alturaCaixa / 2,
+        margem + larguraUtil - 32 - larguraTeclas / 2,
+        y + caixaH / 2,
         tecla,
-        DESTAQUE,
+        AZUL,
         "#ffffff"
       );
     }
   });
 
-  // ---------- Rodapé ----------
-  ctx.textAlign = "center";
+  // ---------- Aviso legal no rodapé ----------
+  const avisoY = COLA_H - avisoH - 64;
+  pathRoundRect(ctx, margem, avisoY, larguraUtil, avisoH, 18);
+  ctx.fillStyle = "#fef2f2";
+  ctx.fill();
+  ctx.strokeStyle = ALERTA;
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  ctx.textAlign = "left";
   ctx.textBaseline = "alphabetic";
-  ctx.fillStyle = CINZA;
+  ctx.fillStyle = ALERTA;
+  ctx.font = fontTexto(30, 700);
+  ctx.fillText("IMPRIMA E LEVE NO PAPEL", margem + 30, avisoY + 52);
+
+  ctx.fillStyle = "#7f1d1d";
   ctx.font = fontTexto(22, 500);
   ctx.fillText(
-    "Confira os números na urna antes de confirmar. Dados públicos do TSE.",
-    COLA_W / 2,
-    COLA_H - 58
+    "Não é permitido usar o celular dentro da cabine de votação — o aparelho",
+    margem + 30,
+    avisoY + 92
   );
+  ctx.fillText(
+    "fica com o mesário. Anotação em papel é permitida. Confira os números",
+    margem + 30,
+    avisoY + 124
+  );
+  ctx.fillText("na urna antes de confirmar.", margem + 30, avisoY + 156);
 }

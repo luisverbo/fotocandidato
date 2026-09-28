@@ -16,21 +16,30 @@ interface Linha {
   cargo: string;
   estado: "aguardando" | "importando" | "ok" | "erro";
   mensagem: string;
+  tentativas?: { url: string; encontrados: number }[];
 }
 
 export default function ImportadorTse() {
   const [uf, setUf] = useState("BA");
+  const [ano, setAno] = useState(String(ANO_ELEICAO));
+  const [idsEleicao, setIdsEleicao] = useState("");
   const [rodando, setRodando] = useState(false);
   const [linhas, setLinhas] = useState<Linha[]>([]);
+  const [diagnostico, setDiagnostico] = useState<string | null>(null);
+  const [diagnosticando, setDiagnosticando] = useState(false);
 
   const cargosDaVez = CARGOS_IMPORTACAO.filter((c) =>
-    uf === "DF"
-      ? c.id !== "deputado_estadual"
-      : c.id !== "deputado_distrital"
+    uf === "DF" ? c.id !== "deputado_estadual" : c.id !== "deputado_distrital"
   );
+
+  const idsArray = idsEleicao
+    .split(/[^0-9]+/)
+    .map(Number)
+    .filter((n) => Number.isFinite(n) && n > 0);
 
   async function importar() {
     setRodando(true);
+    setDiagnostico(null);
     setLinhas(
       cargosDaVez.map((c) => ({
         cargo: c.nome,
@@ -51,7 +60,12 @@ export default function ImportadorTse() {
         const resposta = await fetch("/api/tse/importar", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ano: ANO_ELEICAO, uf, cargo: cargo.id }),
+          body: JSON.stringify({
+            ano: Number(ano),
+            uf,
+            cargo: cargo.id,
+            idsEleicao: idsArray.length > 0 ? idsArray : undefined,
+          }),
         });
         const dados = await resposta.json();
 
@@ -64,6 +78,7 @@ export default function ImportadorTse() {
                   mensagem: dados.ok
                     ? `${dados.gravados} candidatos`
                     : (dados.erro ?? "falhou"),
+                  tentativas: dados.tentativas,
                 }
               : l
           )
@@ -71,9 +86,7 @@ export default function ImportadorTse() {
       } catch {
         setLinhas((atual) =>
           atual.map((l, idx) =>
-            idx === i
-              ? { ...l, estado: "erro", mensagem: "erro de rede" }
-              : l
+            idx === i ? { ...l, estado: "erro", mensagem: "erro de rede" } : l
           )
         );
       }
@@ -82,14 +95,29 @@ export default function ImportadorTse() {
     setRodando(false);
   }
 
+  async function rodarDiagnostico() {
+    setDiagnosticando(true);
+    setDiagnostico(null);
+    try {
+      const params = new URLSearchParams({ ano, uf });
+      if (idsArray.length > 0) params.set("idEleicao", String(idsArray[0]));
+      const resposta = await fetch(`/api/tse/diagnostico?${params}`);
+      const dados = await resposta.json();
+      setDiagnostico(JSON.stringify(dados, null, 2));
+    } catch {
+      setDiagnostico("Falha ao rodar o diagnóstico.");
+    } finally {
+      setDiagnosticando(false);
+    }
+  }
+
   return (
     <div>
       <h1 className="text-2xl font-bold text-white">Cola Digital — dados do TSE</h1>
       <p className="mt-2 max-w-2xl text-sm text-zinc-400">
         Baixa a lista oficial de candidatos do TSE e grava no nosso banco. A
         página pública <code className="text-zinc-300">/cola</code> consulta
-        daqui, sem depender do TSE na hora. Rode uma vez por estado — e de novo
-        quando quiser atualizar.
+        daqui, sem depender do TSE na hora.
       </p>
 
       <div className="mt-6 flex flex-wrap items-end gap-3">
@@ -110,6 +138,32 @@ export default function ImportadorTse() {
             ))}
           </select>
         </label>
+
+        <label className="block">
+          <span className="mb-1 block text-sm font-semibold text-zinc-400">
+            Ano
+          </span>
+          <input
+            value={ano}
+            onChange={(e) => setAno(e.target.value.replace(/\D/g, ""))}
+            disabled={rodando}
+            className="h-11 w-24 rounded-md border border-zinc-700 bg-zinc-900 px-3 text-zinc-100"
+          />
+        </label>
+
+        <label className="block">
+          <span className="mb-1 block text-sm font-semibold text-zinc-400">
+            ID da eleição (opcional)
+          </span>
+          <input
+            value={idsEleicao}
+            onChange={(e) => setIdsEleicao(e.target.value)}
+            disabled={rodando}
+            placeholder="ex: 544, 546"
+            className="h-11 w-44 rounded-md border border-zinc-700 bg-zinc-900 px-3 text-zinc-100 placeholder:text-zinc-600"
+          />
+        </label>
+
         <button
           type="button"
           onClick={importar}
@@ -118,6 +172,15 @@ export default function ImportadorTse() {
         >
           {rodando ? "Importando…" : `Importar ${uf}`}
         </button>
+
+        <button
+          type="button"
+          onClick={rodarDiagnostico}
+          disabled={diagnosticando || rodando}
+          className="h-11 rounded-md border border-zinc-700 px-5 font-semibold text-zinc-300 hover:bg-zinc-800 disabled:opacity-60"
+        >
+          {diagnosticando ? "Testando…" : "Diagnóstico"}
+        </button>
       </div>
 
       {linhas.length > 0 && (
@@ -125,25 +188,48 @@ export default function ImportadorTse() {
           {linhas.map((l) => (
             <li
               key={l.cargo}
-              className="flex items-center justify-between gap-3 rounded-md border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm"
+              className="rounded-md border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm"
             >
-              <span className="text-zinc-200">{l.cargo}</span>
-              <span
-                className={
-                  l.estado === "ok"
-                    ? "text-emerald-400"
-                    : l.estado === "erro"
-                      ? "text-red-400"
-                      : "text-zinc-500"
-                }
-              >
-                {l.estado === "importando"
-                  ? "importando…"
-                  : l.mensagem || "aguardando"}
-              </span>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-zinc-200">{l.cargo}</span>
+                <span
+                  className={
+                    l.estado === "ok"
+                      ? "text-emerald-400"
+                      : l.estado === "erro"
+                        ? "text-red-400"
+                        : "text-zinc-500"
+                  }
+                >
+                  {l.estado === "importando"
+                    ? "importando…"
+                    : l.mensagem || "aguardando"}
+                </span>
+              </div>
+              {l.tentativas && l.tentativas.length > 0 && (
+                <ul className="mt-2 space-y-1 border-t border-zinc-800 pt-2">
+                  {l.tentativas.map((t) => (
+                    <li key={t.url} className="break-all text-xs text-zinc-500">
+                      {t.encontrados >= 0 ? `${t.encontrados} →` : "sem id →"}{" "}
+                      {t.url}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </li>
           ))}
         </ul>
+      )}
+
+      {diagnostico && (
+        <div className="mt-6">
+          <p className="mb-2 text-sm font-semibold text-zinc-400">
+            Diagnóstico (copie e envie para ajustar a integração)
+          </p>
+          <pre className="max-h-96 overflow-auto rounded-md border border-zinc-800 bg-zinc-900 p-4 text-xs text-zinc-300">
+            {diagnostico}
+          </pre>
+        </div>
       )}
     </div>
   );

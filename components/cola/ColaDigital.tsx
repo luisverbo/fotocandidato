@@ -289,23 +289,29 @@ export default function ColaDigital() {
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-xl bg-white pb-20">
-      <header className="border-b border-neutral-200 px-6 py-5">
-        <Link href="/" className="text-sm font-semibold text-neutral-500">
+      <header className="bg-slate-900 px-6 pb-8 pt-6 text-white">
+        <Link
+          href="/"
+          className="text-sm font-semibold text-slate-400 hover:text-slate-200"
+        >
           Santinho Digital
         </Link>
-        <h1 className="font-display text-4xl font-extrabold uppercase leading-none text-neutral-900">
+        <p className="mt-5 inline-block rounded-full bg-blue-600 px-3 py-1 text-xs font-bold uppercase tracking-wider">
+          Eleições {ANO_ELEICAO}
+        </p>
+        <h1 className="mt-3 font-display text-5xl font-extrabold uppercase leading-none">
           Cola digital
         </h1>
-        <p className="mt-2 text-neutral-600">
-          Monte a sua lista de votos das Eleições {ANO_ELEICAO}, imprima e leve
-          no papel.
+        <p className="mt-3 max-w-sm text-slate-300">
+          Monte sua lista de votos na ordem da urna, baixe em PDF e imprima
+          para levar no papel.
         </p>
       </header>
 
       {/* Aviso legal — sempre visível */}
       <section
         role="note"
-        className="mx-6 mt-6 rounded-xl border-2 border-red-600 bg-red-50 p-5"
+        className="mx-6 -mt-5 rounded-2xl border border-red-200 bg-red-50 p-5 shadow-sm"
       >
         <p className="text-lg font-bold text-red-700">
           Imprima e leve no papel
@@ -314,7 +320,7 @@ export default function ColaDigital() {
           Não é permitido usar o celular dentro da cabine de votação. O aparelho
           fica com o mesário antes de você votar.
         </p>
-        <p className="mt-2 text-sm text-red-900">
+        <p className="mt-2 text-sm text-red-800">
           Anotação em papel é permitida. Use esta cola para decidir antes e para
           imprimir — nunca dentro da cabine.
         </p>
@@ -338,7 +344,7 @@ export default function ColaDigital() {
               setFotos({});
             }}
             aria-label="Estado"
-            className={`mt-4 w-full rounded-xl border-2 border-neutral-300 px-4 text-lg font-semibold text-neutral-900 ${alvoToque}`}
+            className={`mt-4 w-full rounded-xl border-2 border-neutral-300 bg-white px-4 text-lg font-semibold text-neutral-900 focus:border-blue-600 ${alvoToque}`}
           >
             <option value="">Selecione o estado</option>
             {UFS.map((u) => (
@@ -375,19 +381,24 @@ export default function ColaDigital() {
                 return (
                   <div
                     key={vaga.id}
-                    className="rounded-xl border-2 border-neutral-200 p-4"
+                    className={`overflow-hidden rounded-2xl border transition-colors ${
+                      p.candidato
+                        ? "border-emerald-300 bg-emerald-50/40"
+                        : "border-neutral-200 bg-white"
+                    }`}
                   >
-                    <div className="flex items-center gap-2">
-                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-neutral-900 text-sm font-bold text-white">
+                    <div className="flex items-center gap-3 border-b border-neutral-100 bg-neutral-50 px-4 py-3">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
                         {indice + 1}
                       </span>
-                      <span className="font-semibold text-neutral-900">
+                      <span className="flex-1 font-semibold text-neutral-900">
                         {vaga.rotulo}
                       </span>
-                      <span className="text-sm text-neutral-500">
-                        {vaga.cargo.digitos} números
+                      <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-neutral-500">
+                        {vaga.cargo.digitos} dígitos
                       </span>
                     </div>
+                    <div className="p-4">
 
                     <input
                       inputMode="numeric"
@@ -396,7 +407,7 @@ export default function ColaDigital() {
                       onChange={(e) => aoDigitar(vaga, e.target.value)}
                       placeholder={"0".repeat(vaga.cargo.digitos)}
                       aria-label={`Número para ${vaga.rotulo}`}
-                      className={`mt-3 w-full rounded-xl border-2 border-neutral-300 px-4 font-display text-3xl font-extrabold tracking-widest text-neutral-900 ${alvoToque}`}
+                      className={`w-full rounded-xl border-2 border-neutral-300 bg-white px-4 text-center font-display text-4xl font-extrabold tracking-[0.3em] text-neutral-900 focus:border-blue-600 ${alvoToque}`}
                     />
 
                     {p.buscando && (
@@ -465,6 +476,7 @@ export default function ColaDigital() {
                           Nenhum candidato com esse número. Confira os dígitos.
                         </p>
                       )}
+                    </div>
                   </div>
                 );
               })}
@@ -479,20 +491,22 @@ export default function ColaDigital() {
               3. Baixe e imprima
             </h2>
 
-            <canvas
-              ref={canvasRef}
-              role="img"
-              aria-label="Prévia da sua cola de votação"
-              className="mx-auto mt-4 w-full rounded-lg border border-neutral-300 shadow-sm"
-              style={{ aspectRatio: `${COLA_W} / ${COLA_H}` }}
-            />
+            <div className="mt-4 rounded-2xl bg-neutral-100 p-4">
+              <canvas
+                ref={canvasRef}
+                role="img"
+                aria-label="Prévia da sua cola de votação"
+                className="mx-auto w-full rounded-lg bg-white shadow-lg"
+                style={{ aspectRatio: `${COLA_W} / ${COLA_H}` }}
+              />
+            </div>
 
             <div className="mt-5 grid gap-3">
               <button
                 type="button"
                 onClick={baixarPdf}
                 disabled={gerando}
-                className={`w-full rounded-xl bg-neutral-900 px-6 text-lg font-bold text-white active:bg-neutral-700 disabled:opacity-60 ${alvoToque}`}
+                className={`w-full rounded-xl bg-blue-600 px-6 text-lg font-bold text-white shadow-sm active:bg-blue-700 disabled:opacity-60 ${alvoToque}`}
               >
                 {gerando ? "Gerando…" : "Baixar PDF para imprimir"}
               </button>
