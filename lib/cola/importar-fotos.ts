@@ -47,9 +47,12 @@ export async function comprimirFoto(
 
 // Descompacta o zip de fotos sem travar a interface.
 export async function abrirZipDeFotos(
-  file: File
+  origem: File | Uint8Array
 ): Promise<Record<string, Uint8Array>> {
-  const buffer = new Uint8Array(await file.arrayBuffer());
+  const buffer =
+    origem instanceof Uint8Array
+      ? origem
+      : new Uint8Array(await origem.arrayBuffer());
   const { unzip } = await import("fflate");
 
   return new Promise((resolve, reject) => {
@@ -92,4 +95,9 @@ export async function emLotes<T>(
   await Promise.all(
     Array.from({ length: Math.min(paralelismo, itens.length) }, trabalhador)
   );
+}
+
+// Endereços oficiais dos arquivos de foto no CDN do TSE.
+export function urlFotosTse(ano: number | string, uf: string): string {
+  return `https://cdn.tse.jus.br/estatistica/sead/eleicoes/eleicoes${ano}/candidatos/foto_cand${ano}_${uf.toUpperCase()}_div.zip`;
 }
