@@ -71,6 +71,42 @@ export default function ColaDigital() {
     setSemSom(somDesligado());
   }, []);
 
+  // Métrica de acesso: uma vez por visita, sem nada que identifique a pessoa
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem("cola-visita-registrada")) return;
+      sessionStorage.setItem("cola-visita-registrada", "1");
+    } catch {
+      // sem sessionStorage seguimos e o acesso é contado igual
+    }
+    void supabaseBrowser()
+      .from("cola_visitas")
+      .insert({ etapa: "abriu" })
+      .then(
+        () => {},
+        () => {}
+      );
+  }, []);
+
+  // Métrica do estado escolhido, uma vez por estado por visita
+  useEffect(() => {
+    if (!uf) return;
+    try {
+      const chave = `cola-estado-${uf}`;
+      if (sessionStorage.getItem(chave)) return;
+      sessionStorage.setItem(chave, "1");
+    } catch {
+      // segue sem o controle de repetição
+    }
+    void supabaseBrowser()
+      .from("cola_visitas")
+      .insert({ etapa: "escolheu_estado", uf })
+      .then(
+        () => {},
+        () => {}
+      );
+  }, [uf]);
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const urlsCarregadas = useRef<Record<string, string>>({});
@@ -224,13 +260,37 @@ export default function ColaDigital() {
 
   function registrar(acao: "pdf" | "imagem" | "share") {
     try {
-      void supabaseBrowser()
+      const supabase = supabaseBrowser();
+
+      void supabase
         .from("colas_geradas")
         .insert({ uf, acao, qtd_cargos: linhas.length })
         .then(
           () => {},
           () => {}
         );
+
+      // Um registro por número escolhido, para saber o que mais aparece
+      const escolhas = linhas
+        .filter((l) => l.candidato)
+        .map((l) => ({
+          uf,
+          cargo: l.cargo.id,
+          numero: l.candidato!.numero,
+          nome_urna: l.candidato!.nome_urna,
+          partido: l.candidato!.partido,
+          acao,
+        }));
+
+      if (escolhas.length > 0) {
+        void supabase
+          .from("cola_escolhas")
+          .insert(escolhas)
+          .then(
+            () => {},
+            () => {}
+          );
+      }
     } catch {
       // métrica nunca atrapalha
     }
