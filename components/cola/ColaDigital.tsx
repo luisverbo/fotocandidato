@@ -33,8 +33,19 @@ const VAZIO: Preenchimento = {
   buscando: false,
 };
 
-function urlFotoProxy(url: string | null): string | null {
-  return url ? `/api/tse/foto?url=${encodeURIComponent(url)}` : null;
+// Fotos que ficam no nosso Storage já vêm com CORS e podem ir direto para
+// o canvas. Só as que continuam no TSE precisam passar pelo proxy.
+function urlFoto(url: string | null): string | null {
+  if (!url) return null;
+  try {
+    const host = new URL(url, window.location.origin).hostname;
+    if (host.endsWith("tse.jus.br")) {
+      return `/api/tse/foto?url=${encodeURIComponent(url)}`;
+    }
+  } catch {
+    return url;
+  }
+  return url;
 }
 
 export default function ColaDigital() {
@@ -49,6 +60,7 @@ export default function ColaDigital() {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const urlsCarregadas = useRef<Record<string, string>>({});
 
   const vagas: Vaga[] = useMemo(() => {
     if (!uf) return [];
@@ -76,23 +88,31 @@ export default function ColaDigital() {
     };
   }, [uf]);
 
-  // Carrega as fotos dos candidatos escolhidos (via proxy, para o canvas)
+  // Carrega as fotos dos candidatos escolhidos para usar no canvas
   useEffect(() => {
     for (const [vagaId, p] of Object.entries(preenchimentos)) {
-      const url = urlFotoProxy(p.candidato?.foto_url ?? null);
+      const url = urlFoto(p.candidato?.foto_url ?? null);
+
       if (!url) {
-        if (fotos[vagaId]) setFotos((f) => ({ ...f, [vagaId]: null }));
+        if (urlsCarregadas.current[vagaId]) {
+          delete urlsCarregadas.current[vagaId];
+          setFotos((f) => ({ ...f, [vagaId]: null }));
+        }
         continue;
       }
-      if (fotos[vagaId]?.src.includes(encodeURIComponent(p.candidato!.foto_url!)))
-        continue;
+
+      if (urlsCarregadas.current[vagaId] === url) continue;
+      urlsCarregadas.current[vagaId] = url;
+
       const img = new Image();
       img.crossOrigin = "anonymous";
       img.onload = () => setFotos((f) => ({ ...f, [vagaId]: img }));
-      img.onerror = () => setFotos((f) => ({ ...f, [vagaId]: null }));
+      img.onerror = () => {
+        // Sem CORS a foto não serve para o canvas: segue com a inicial
+        setFotos((f) => ({ ...f, [vagaId]: null }));
+      };
       img.src = url;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preenchimentos]);
 
   const linhas: LinhaCola[] = useMemo(
@@ -419,7 +439,7 @@ export default function ColaDigital() {
                         {p.candidato.foto_url && (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
-                            src={urlFotoProxy(p.candidato.foto_url)!}
+                            src={urlFoto(p.candidato.foto_url)!}
                             alt=""
                             className="h-12 w-12 rounded object-cover"
                           />
