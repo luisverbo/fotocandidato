@@ -1,0 +1,530 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { supabaseBrowser } from "@/lib/supabase/client";
+import { aguardarFontes } from "@/lib/canvas/fontes";
+import {
+  ANO_ELEICAO,
+  cargosDaUf,
+  UFS,
+  type DefinicaoCargo,
+} from "@/lib/cola/cargos";
+import { buscarCandidatos, contarCandidatos, type CandidatoCola } from "@/lib/cola/busca";
+import { COLA_H, COLA_W, desenharCola, type LinhaCola } from "@/lib/cola/render";
+
+interface Vaga {
+  id: string;
+  cargo: DefinicaoCargo;
+  rotulo: string;
+}
+
+interface Preenchimento {
+  numero: string;
+  candidato: CandidatoCola | null;
+  sugestoes: CandidatoCola[];
+  buscando: boolean;
+}
+
+const VAZIO: Preenchimento = {
+  numero: "",
+  candidato: null,
+  sugestoes: [],
+  buscando: false,
+};
+
+function urlFotoProxy(url: string | null): string | null {
+  return url ? `/api/tse/foto?url=${encodeURIComponent(url)}` : null;
+}
+
+export default function ColaDigital() {
+  const [uf, setUf] = useState("");
+  const [temDados, setTemDados] = useState<boolean | null>(null);
+  const [preenchimentos, setPreenchimentos] = useState<
+    Record<string, Preenchimento>
+  >({});
+  const [fotos, setFotos] = useState<Record<string, HTMLImageElement | null>>({});
+  const [gerando, setGerando] = useState(false);
+  const [aviso, setAviso] = useState<string | null>(null);
+
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  const vagas: Vaga[] = useMemo(() => {
+    if (!uf) return [];
+    return cargosDaUf(uf).flatMap((cargo) =>
+      Array.from({ length: cargo.vagas }, (_, i) => ({
+        id: cargo.vagas > 1 ? `${cargo.id}-${i + 1}` : cargo.id,
+        cargo,
+        rotulo: cargo.vagas > 1 ? `${cargo.nome} ${i + 1}º voto` : cargo.nome,
+      }))
+    );
+  }, [uf]);
+
+  // Avisa quando o estado escolhido ainda não tem candidatos importados
+  useEffect(() => {
+    if (!uf) {
+      setTemDados(null);
+      return;
+    }
+    let ativo = true;
+    contarCandidatos(uf).then((qtd) => {
+      if (ativo) setTemDados(qtd > 0);
+    });
+    return () => {
+      ativo = false;
+    };
+  }, [uf]);
+
+  // Carrega as fotos dos candidatos escolhidos (via proxy, para o canvas)
+  useEffect(() => {
+    for (const [vagaId, p] of Object.entries(preenchimentos)) {
+      const url = urlFotoProxy(p.candidato?.foto_url ?? null);
+      if (!url) {
+        if (fotos[vagaId]) setFotos((f) => ({ ...f, [vagaId]: null }));
+        continue;
+      }
+      if (fotos[vagaId]?.src.includes(encodeURIComponent(p.candidato!.foto_url!)))
+        continue;
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => setFotos((f) => ({ ...f, [vagaId]: img }));
+      img.onerror = () => setFotos((f) => ({ ...f, [vagaId]: null }));
+      img.src = url;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preenchimentos]);
+
+  const linhas: LinhaCola[] = useMemo(
+    () =>
+      vagas
+        .map((vaga) => {
+          const p = preenchimentos[vaga.id] ?? VAZIO;
+          return {
+            cargo: vaga.cargo,
+            rotulo: vaga.rotulo,
+            candidato: p.candidato,
+            numeroDigitado: p.numero,
+            foto: fotos[vaga.id] ?? null,
+          };
+        })
+        .filter((l) => l.candidato || l.numeroDigitado),
+    [vagas, preenchimentos, fotos]
+  );
+
+  // Redesenha a prévia sempre que algo muda
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || linhas.length === 0) return;
+    aguardarFontes().then(() => desenharCola(canvas, uf, linhas));
+  }, [linhas, uf]);
+
+  const aoDigitar = useCallback(
+    (vaga: Vaga, valor: string) => {
+      const numero = valor.replace(/\D/g, "").slice(0, vaga.cargo.digitos);
+      setPreenchimentos((atual) => ({
+        ...atual,
+        [vaga.id]: {
+          ...(atual[vaga.id] ?? VAZIO),
+          numero,
+          candidato: null,
+          buscando: numero.length >= 2,
+        },
+      }));
+
+      clearTimeout(timers.current[vaga.id]);
+      if (numero.length < 2) {
+        setPreenchimentos((atual) => ({
+          ...atual,
+          [vaga.id]: { ...(atual[vaga.id] ?? VAZIO), numero, sugestoes: [] },
+        }));
+        return;
+      }
+
+      timers.current[vaga.id] = setTimeout(async () => {
+        const achados = await buscarCandidatos(uf, vaga.cargo.id, numero);
+        setPreenchimentos((atual) => {
+          const p = atual[vaga.id] ?? VAZIO;
+          if (p.numero !== numero) return atual;
+          // Número completo com um único resultado: já seleciona
+          const exato =
+            numero.length === vaga.cargo.digitos
+              ? (achados.find((c) => c.numero === numero) ?? null)
+              : null;
+          return {
+            ...atual,
+            [vaga.id]: {
+              ...p,
+              buscando: false,
+              sugestoes: exato ? [] : achados,
+              candidato: exato ?? null,
+            },
+          };
+        });
+      }, 300);
+    },
+    [uf]
+  );
+
+  function escolher(vaga: Vaga, candidato: CandidatoCola) {
+    setPreenchimentos((atual) => ({
+      ...atual,
+      [vaga.id]: {
+        numero: candidato.numero,
+        candidato,
+        sugestoes: [],
+        buscando: false,
+      },
+    }));
+  }
+
+  function limpar(vaga: Vaga) {
+    setPreenchimentos((atual) => ({ ...atual, [vaga.id]: { ...VAZIO } }));
+    setFotos((f) => ({ ...f, [vaga.id]: null }));
+  }
+
+  function registrar(acao: "pdf" | "imagem" | "share") {
+    try {
+      void supabaseBrowser()
+        .from("colas_geradas")
+        .insert({ uf, acao, qtd_cargos: linhas.length })
+        .then(
+          () => {},
+          () => {}
+        );
+    } catch {
+      // métrica nunca atrapalha
+    }
+  }
+
+  async function prepararCanvas(): Promise<HTMLCanvasElement | null> {
+    if (linhas.length === 0) return null;
+    await aguardarFontes();
+    const canvas = document.createElement("canvas");
+    desenharCola(canvas, uf, linhas);
+    return canvas;
+  }
+
+  async function baixarPdf() {
+    if (gerando) return;
+    setGerando(true);
+    setAviso(null);
+    try {
+      const canvas = await prepararCanvas();
+      if (!canvas) return;
+      const { jsPDF } = await import("jspdf");
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      pdf.addImage(
+        canvas.toDataURL("image/jpeg", 0.92),
+        "JPEG",
+        0,
+        0,
+        210,
+        297
+      );
+      pdf.save(`cola-de-votacao-${uf}.pdf`);
+      registrar("pdf");
+      setAviso("PDF salvo! Agora é só imprimir e levar no papel.");
+    } catch {
+      setAviso("Não conseguimos gerar o PDF. Tente baixar como imagem.");
+    } finally {
+      setGerando(false);
+    }
+  }
+
+  async function baixarImagem() {
+    if (gerando) return;
+    setGerando(true);
+    setAviso(null);
+    try {
+      const canvas = await prepararCanvas();
+      if (!canvas) return;
+      const link = document.createElement("a");
+      link.href = canvas.toDataURL("image/jpeg", 0.92);
+      link.download = `cola-de-votacao-${uf}.jpg`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      registrar("imagem");
+      setAviso("Imagem salva! Imprima e leve no papel.");
+    } catch {
+      setAviso("Não conseguimos gerar a imagem. Tente de novo.");
+    } finally {
+      setGerando(false);
+    }
+  }
+
+  async function compartilhar() {
+    if (gerando) return;
+    setGerando(true);
+    setAviso(null);
+    try {
+      const canvas = await prepararCanvas();
+      if (!canvas) return;
+      const blob = await new Promise<Blob | null>((r) =>
+        canvas.toBlob(r, "image/jpeg", 0.92)
+      );
+      if (!blob) return;
+      const arquivo = new File([blob], `cola-de-votacao-${uf}.jpg`, {
+        type: "image/jpeg",
+      });
+      if (
+        typeof navigator.share === "function" &&
+        typeof navigator.canShare === "function" &&
+        navigator.canShare({ files: [arquivo] })
+      ) {
+        await navigator.share({ files: [arquivo], title: "Minha cola de votação" });
+        registrar("share");
+      } else {
+        await baixarImagem();
+      }
+    } catch {
+      // usuário cancelou
+    } finally {
+      setGerando(false);
+    }
+  }
+
+  const alvoToque = "min-h-14";
+
+  return (
+    <main className="mx-auto min-h-dvh w-full max-w-xl bg-white pb-20">
+      <header className="border-b border-neutral-200 px-6 py-5">
+        <Link href="/" className="text-sm font-semibold text-neutral-500">
+          Santinho Digital
+        </Link>
+        <h1 className="font-display text-4xl font-extrabold uppercase leading-none text-neutral-900">
+          Cola digital
+        </h1>
+        <p className="mt-2 text-neutral-600">
+          Monte a sua lista de votos das Eleições {ANO_ELEICAO}, imprima e leve
+          no papel.
+        </p>
+      </header>
+
+      {/* Aviso legal — sempre visível */}
+      <section
+        role="note"
+        className="mx-6 mt-6 rounded-xl border-2 border-red-600 bg-red-50 p-5"
+      >
+        <p className="text-lg font-bold text-red-700">
+          Imprima e leve no papel
+        </p>
+        <p className="mt-2 font-semibold text-red-900">
+          Não é permitido usar o celular dentro da cabine de votação. O aparelho
+          fica com o mesário antes de você votar.
+        </p>
+        <p className="mt-2 text-sm text-red-900">
+          Anotação em papel é permitida. Use esta cola para decidir antes e para
+          imprimir — nunca dentro da cabine.
+        </p>
+      </section>
+
+      <div className="px-6">
+        {/* Etapa 1 — Estado */}
+        <section className="pt-8" aria-labelledby="etapa-estado">
+          <h2 id="etapa-estado" className="text-xl font-bold text-neutral-900">
+            1. Escolha seu estado
+          </h2>
+          <p className="mt-1 text-neutral-600">
+            Só aparecem os candidatos do seu estado — menos presidente, que é
+            para o Brasil inteiro.
+          </p>
+          <select
+            value={uf}
+            onChange={(e) => {
+              setUf(e.target.value);
+              setPreenchimentos({});
+              setFotos({});
+            }}
+            aria-label="Estado"
+            className={`mt-4 w-full rounded-xl border-2 border-neutral-300 px-4 text-lg font-semibold text-neutral-900 ${alvoToque}`}
+          >
+            <option value="">Selecione o estado</option>
+            {UFS.map((u) => (
+              <option key={u.sigla} value={u.sigla}>
+                {u.nome} ({u.sigla})
+              </option>
+            ))}
+          </select>
+
+          {temDados === false && (
+            <p
+              role="alert"
+              className="mt-3 rounded-lg bg-amber-50 px-4 py-3 font-semibold text-amber-900"
+            >
+              Os candidatos deste estado ainda não foram carregados. Tente de
+              novo mais tarde.
+            </p>
+          )}
+        </section>
+
+        {/* Etapa 2 — Números */}
+        {uf && (
+          <section className="pt-10" aria-labelledby="etapa-numeros">
+            <h2 id="etapa-numeros" className="text-xl font-bold text-neutral-900">
+              2. Digite os números
+            </h2>
+            <p className="mt-1 text-neutral-600">
+              Na ordem da urna. Preencha só os que quiser.
+            </p>
+
+            <div className="mt-4 space-y-4">
+              {vagas.map((vaga, indice) => {
+                const p = preenchimentos[vaga.id] ?? VAZIO;
+                return (
+                  <div
+                    key={vaga.id}
+                    className="rounded-xl border-2 border-neutral-200 p-4"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-neutral-900 text-sm font-bold text-white">
+                        {indice + 1}
+                      </span>
+                      <span className="font-semibold text-neutral-900">
+                        {vaga.rotulo}
+                      </span>
+                      <span className="text-sm text-neutral-500">
+                        {vaga.cargo.digitos} números
+                      </span>
+                    </div>
+
+                    <input
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={p.numero}
+                      onChange={(e) => aoDigitar(vaga, e.target.value)}
+                      placeholder={"0".repeat(vaga.cargo.digitos)}
+                      aria-label={`Número para ${vaga.rotulo}`}
+                      className={`mt-3 w-full rounded-xl border-2 border-neutral-300 px-4 font-display text-3xl font-extrabold tracking-widest text-neutral-900 ${alvoToque}`}
+                    />
+
+                    {p.buscando && (
+                      <p className="mt-2 text-sm text-neutral-500">Procurando…</p>
+                    )}
+
+                    {p.candidato && (
+                      <div className="mt-3 flex items-center gap-3 rounded-lg bg-emerald-50 p-3">
+                        {p.candidato.foto_url && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={urlFotoProxy(p.candidato.foto_url)!}
+                            alt=""
+                            className="h-12 w-12 rounded object-cover"
+                          />
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-bold text-emerald-900">
+                            {p.candidato.nome_urna}
+                          </p>
+                          <p className="text-sm text-emerald-800">
+                            {p.candidato.partido ?? ""}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => limpar(vaga)}
+                          className="min-h-12 rounded-lg px-3 text-sm font-semibold text-emerald-900 underline"
+                        >
+                          Trocar
+                        </button>
+                      </div>
+                    )}
+
+                    {!p.candidato && p.sugestoes.length > 0 && (
+                      <ul className="mt-3 space-y-2">
+                        {p.sugestoes.map((c) => (
+                          <li key={c.id}>
+                            <button
+                              type="button"
+                              onClick={() => escolher(vaga, c)}
+                              className={`flex w-full items-center gap-3 rounded-lg border-2 border-neutral-200 p-3 text-left active:bg-neutral-100 ${alvoToque}`}
+                            >
+                              <span className="font-display text-xl font-extrabold text-neutral-900">
+                                {c.numero}
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate font-semibold text-neutral-900">
+                                  {c.nome_urna}
+                                </span>
+                                <span className="block text-sm text-neutral-500">
+                                  {c.partido ?? ""}
+                                </span>
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+
+                    {!p.candidato &&
+                      !p.buscando &&
+                      p.numero.length >= 2 &&
+                      p.sugestoes.length === 0 && (
+                        <p className="mt-2 text-sm font-semibold text-amber-700">
+                          Nenhum candidato com esse número. Confira os dígitos.
+                        </p>
+                      )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* Etapa 3 — Baixar */}
+        {linhas.length > 0 && (
+          <section className="pt-10" aria-labelledby="etapa-baixar">
+            <h2 id="etapa-baixar" className="text-xl font-bold text-neutral-900">
+              3. Baixe e imprima
+            </h2>
+
+            <canvas
+              ref={canvasRef}
+              role="img"
+              aria-label="Prévia da sua cola de votação"
+              className="mx-auto mt-4 w-full rounded-lg border border-neutral-300 shadow-sm"
+              style={{ aspectRatio: `${COLA_W} / ${COLA_H}` }}
+            />
+
+            <div className="mt-5 grid gap-3">
+              <button
+                type="button"
+                onClick={baixarPdf}
+                disabled={gerando}
+                className={`w-full rounded-xl bg-neutral-900 px-6 text-lg font-bold text-white active:bg-neutral-700 disabled:opacity-60 ${alvoToque}`}
+              >
+                {gerando ? "Gerando…" : "Baixar PDF para imprimir"}
+              </button>
+              <button
+                type="button"
+                onClick={baixarImagem}
+                disabled={gerando}
+                className={`w-full rounded-xl border-2 border-neutral-300 px-6 text-lg font-semibold text-neutral-900 active:bg-neutral-100 disabled:opacity-60 ${alvoToque}`}
+              >
+                Baixar imagem
+              </button>
+              <button
+                type="button"
+                onClick={compartilhar}
+                disabled={gerando}
+                className={`w-full rounded-xl border-2 border-neutral-300 px-6 text-lg font-semibold text-neutral-900 active:bg-neutral-100 disabled:opacity-60 ${alvoToque}`}
+              >
+                Compartilhar
+              </button>
+            </div>
+
+            {aviso && (
+              <p
+                role="status"
+                className="mt-3 rounded-lg bg-emerald-50 px-4 py-3 font-semibold text-emerald-800"
+              >
+                {aviso}
+              </p>
+            )}
+          </section>
+        )}
+      </div>
+    </main>
+  );
+}

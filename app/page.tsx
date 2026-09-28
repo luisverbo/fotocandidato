@@ -34,6 +34,12 @@ export default function Landing() {
           >
             Começar agora
           </Link>
+          <Link
+            href="/cola"
+            className="rounded-xl border-2 border-neutral-300 px-8 py-4 text-base font-semibold text-neutral-900 hover:bg-neutral-100"
+          >
+            Cola Digital
+          </Link>
         </div>
         <ul className="mt-14 grid gap-4 text-sm text-neutral-600 sm:grid-cols-3">
           <li className="rounded-xl border border-neutral-200 p-4">

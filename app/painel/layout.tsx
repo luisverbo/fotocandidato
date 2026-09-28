@@ -27,6 +27,9 @@ export default async function PainelLayout({
             Santinho Digital
           </Link>
           <div className="flex items-center gap-4 text-sm text-zinc-400">
+            <Link href="/painel/tse" className="hover:text-zinc-200">
+              Cola/TSE
+            </Link>
             <span className="hidden sm:inline">{user.email}</span>
             <BotaoSair />
           </div>
