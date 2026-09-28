@@ -1,4 +1,5 @@
 import ImportadorCsvTse from "@/components/painel/ImportadorCsvTse";
+import ImportadorFotosTse from "@/components/painel/ImportadorFotosTse";
 import ImportadorTse from "@/components/painel/ImportadorTse";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +18,8 @@ export default function PaginaImportacaoTse() {
       </div>
 
       <ImportadorCsvTse />
+
+      <ImportadorFotosTse />
 
       <details className="rounded-lg border border-zinc-800 p-5">
         <summary className="cursor-pointer text-sm font-semibold text-zinc-400">
