@@ -65,6 +65,11 @@ export default function ColaDigital() {
   const [gerando, setGerando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
   const [semSom, setSemSom] = useState(false);
+  // Imagem pronta, exibida num cartão para a pessoa salvar
+  const [imagemPronta, setImagemPronta] = useState<{
+    url: string;
+    arquivo: File;
+  } | null>(null);
 
   // O estado do som fica no aparelho da pessoa
   useEffect(() => {
@@ -332,22 +337,58 @@ export default function ColaDigital() {
     }
   }
 
+  // Gera a imagem como arquivo de verdade. Endereço de dados (data URL)
+  // não funciona aqui: a cola em A4 fica grande demais e o navegador
+  // abre o diálogo mas não salva.
+  async function gerarArquivoImagem(): Promise<File | null> {
+    const canvas = await prepararCanvas();
+    if (!canvas) return null;
+    const blob = await new Promise<Blob | null>((r) =>
+      canvas.toBlob(r, "image/jpeg", 0.92)
+    );
+    if (!blob) return null;
+    return new File([blob], `cola-de-votacao-${uf}.jpg`, {
+      type: "image/jpeg",
+    });
+  }
+
+  function mostrarImagem(arquivo: File) {
+    setImagemPronta((anterior) => {
+      if (anterior) URL.revokeObjectURL(anterior.url);
+      return { url: URL.createObjectURL(arquivo), arquivo };
+    });
+  }
+
+  function fecharImagem() {
+    setImagemPronta((anterior) => {
+      if (anterior) URL.revokeObjectURL(anterior.url);
+      return null;
+    });
+  }
+
+  async function salvarNaGaleria() {
+    if (!imagemPronta) return;
+    try {
+      await navigator.share({
+        files: [imagemPronta.arquivo],
+        title: "Minha cola de votação",
+      });
+      registrar("share");
+    } catch {
+      // a pessoa cancelou — o botão de baixar continua ali
+    }
+  }
+
   async function baixarImagem() {
     if (gerando) return;
     setGerando(true);
     setAviso(null);
     try {
-      const canvas = await prepararCanvas();
-      if (!canvas) return;
+      const arquivo = await gerarArquivoImagem();
+      if (!arquivo) return;
       tocarObturador();
-      const link = document.createElement("a");
-      link.href = canvas.toDataURL("image/jpeg", 0.92);
-      link.download = `cola-de-votacao-${uf}.jpg`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      mostrarImagem(arquivo);
       registrar("imagem");
-      setAviso("Imagem salva! Imprima e leve no papel.");
     } catch {
       setAviso("Não conseguimos gerar a imagem. Tente de novo.");
     } finally {
@@ -360,25 +401,31 @@ export default function ColaDigital() {
     setGerando(true);
     setAviso(null);
     try {
-      const canvas = await prepararCanvas();
-      if (!canvas) return;
+      const arquivo = await gerarArquivoImagem();
+      if (!arquivo) return;
       tocarObturador();
-      const blob = await new Promise<Blob | null>((r) =>
-        canvas.toBlob(r, "image/jpeg", 0.92)
-      );
-      if (!blob) return;
-      const arquivo = new File([blob], `cola-de-votacao-${uf}.jpg`, {
-        type: "image/jpeg",
-      });
+
+      let compartilhou = false;
       if (
         typeof navigator.share === "function" &&
         typeof navigator.canShare === "function" &&
         navigator.canShare({ files: [arquivo] })
       ) {
-        await navigator.share({ files: [arquivo], title: "Minha cola de votação" });
-        registrar("share");
-      } else {
-        await baixarImagem();
+        try {
+          await navigator.share({
+            files: [arquivo],
+            title: "Minha cola de votação",
+          });
+          compartilhou = true;
+          registrar("share");
+        } catch {
+          compartilhou = true; // cancelou; não force o download
+        }
+      }
+
+      if (!compartilhou) {
+        mostrarImagem(arquivo);
+        registrar("imagem");
       }
     } catch {
       // usuário cancelou
@@ -656,6 +703,74 @@ export default function ColaDigital() {
           </section>
         )}
       </div>
+
+      {/* Imagem pronta: o navegador só salva com um toque direto num link */}
+      {imagemPronta && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Sua cola está pronta"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-5"
+          onClick={fecharImagem}
+        >
+          <div
+            className="max-h-[92dvh] w-full max-w-sm overflow-y-auto rounded-2xl bg-white p-5 text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-bold text-neutral-900">
+              Sua cola está pronta!
+            </h3>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={imagemPronta.url}
+              alt="Cola de votação gerada"
+              className="mx-auto mt-3 max-h-[45dvh] w-auto rounded-lg border border-neutral-200"
+            />
+
+            {typeof navigator !== "undefined" &&
+            typeof navigator.share === "function" &&
+            typeof navigator.canShare === "function" &&
+            navigator.canShare({ files: [imagemPronta.arquivo] }) ? (
+              <>
+                <button
+                  type="button"
+                  onClick={salvarNaGaleria}
+                  className={`mt-4 block w-full rounded-xl bg-blue-600 px-6 text-lg font-bold text-white active:bg-blue-700 ${alvoToque}`}
+                >
+                  Salvar na galeria
+                </button>
+                <p className="mt-2 text-sm text-neutral-600">
+                  Toque no botão e escolha{" "}
+                  <strong>&ldquo;Salvar imagem&rdquo;</strong>.
+                </p>
+              </>
+            ) : (
+              <p className="mt-3 text-sm font-semibold text-neutral-700">
+                Segure o dedo na imagem e toque em &ldquo;Salvar imagem&rdquo;.
+              </p>
+            )}
+
+            <a
+              href={imagemPronta.url}
+              download={imagemPronta.arquivo.name}
+              className={`mt-3 flex w-full items-center justify-center rounded-xl border-2 border-neutral-300 px-6 font-semibold text-neutral-700 ${alvoToque}`}
+            >
+              Baixar arquivo
+            </a>
+            <p className="mt-1 text-xs text-neutral-500">
+              O arquivo fica na pasta Downloads do aparelho.
+            </p>
+
+            <button
+              type="button"
+              onClick={fecharImagem}
+              className={`mt-2 w-full rounded-xl font-semibold text-neutral-500 ${alvoToque}`}
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
