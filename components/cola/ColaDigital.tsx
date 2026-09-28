@@ -12,6 +12,13 @@ import {
 } from "@/lib/cola/cargos";
 import { buscarCandidatos, contarCandidatos, type CandidatoCola } from "@/lib/cola/busca";
 import { COLA_H, COLA_W, desenharCola, type LinhaCola } from "@/lib/cola/render";
+import {
+  definirSomDesligado,
+  somDesligado,
+  tocarConfirma,
+  tocarObturador,
+  tocarTecla,
+} from "@/lib/cola/sons";
 
 interface Vaga {
   id: string;
@@ -57,6 +64,12 @@ export default function ColaDigital() {
   const [fotos, setFotos] = useState<Record<string, HTMLImageElement | null>>({});
   const [gerando, setGerando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
+  const [semSom, setSemSom] = useState(false);
+
+  // O estado do som fica no aparelho da pessoa
+  useEffect(() => {
+    setSemSom(somDesligado());
+  }, []);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const timers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -142,6 +155,10 @@ export default function ColaDigital() {
   const aoDigitar = useCallback(
     (vaga: Vaga, valor: string) => {
       const numero = valor.replace(/\D/g, "").slice(0, vaga.cargo.digitos);
+      const anterior = preenchimentos[vaga.id]?.numero ?? "";
+      // Só na digitação, não ao apagar
+      if (numero.length > anterior.length) tocarTecla();
+
       setPreenchimentos((atual) => ({
         ...atual,
         [vaga.id]: {
@@ -171,6 +188,7 @@ export default function ColaDigital() {
             numero.length === vaga.cargo.digitos
               ? (achados.find((c) => c.numero === numero) ?? null)
               : null;
+          if (exato) tocarConfirma();
           return {
             ...atual,
             [vaga.id]: {
@@ -183,10 +201,11 @@ export default function ColaDigital() {
         });
       }, 300);
     },
-    [uf]
+    [uf, preenchimentos]
   );
 
   function escolher(vaga: Vaga, candidato: CandidatoCola) {
+    tocarConfirma();
     setPreenchimentos((atual) => ({
       ...atual,
       [vaga.id]: {
@@ -232,6 +251,7 @@ export default function ColaDigital() {
     try {
       const canvas = await prepararCanvas();
       if (!canvas) return;
+      tocarObturador();
       const { jsPDF } = await import("jspdf");
       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
       pdf.addImage(
@@ -259,6 +279,7 @@ export default function ColaDigital() {
     try {
       const canvas = await prepararCanvas();
       if (!canvas) return;
+      tocarObturador();
       const link = document.createElement("a");
       link.href = canvas.toDataURL("image/jpeg", 0.92);
       link.download = `cola-de-votacao-${uf}.jpg`;
@@ -281,6 +302,7 @@ export default function ColaDigital() {
     try {
       const canvas = await prepararCanvas();
       if (!canvas) return;
+      tocarObturador();
       const blob = await new Promise<Blob | null>((r) =>
         canvas.toBlob(r, "image/jpeg", 0.92)
       );
@@ -310,12 +332,27 @@ export default function ColaDigital() {
   return (
     <main className="mx-auto min-h-dvh w-full max-w-xl bg-white pb-20">
       <header className="bg-slate-900 px-6 pb-8 pt-6 text-white">
-        <Link
-          href="/"
-          className="text-sm font-semibold text-slate-400 hover:text-slate-200"
-        >
-          Santinho Digital
-        </Link>
+        <div className="flex items-start justify-between gap-4">
+          <Link
+            href="/"
+            className="text-sm font-semibold text-slate-400 hover:text-slate-200"
+          >
+            Santinho Digital
+          </Link>
+          <button
+            type="button"
+            onClick={() => {
+              const novo = !semSom;
+              setSemSom(novo);
+              definirSomDesligado(novo);
+              if (!novo) tocarTecla();
+            }}
+            aria-pressed={semSom}
+            className="rounded-full border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800"
+          >
+            {semSom ? "Som desligado" : "Som ligado"}
+          </button>
+        </div>
         <p className="mt-5 inline-block rounded-full bg-blue-600 px-3 py-1 text-xs font-bold uppercase tracking-wider">
           Eleições {ANO_ELEICAO}
         </p>
