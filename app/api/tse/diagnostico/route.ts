@@ -64,6 +64,9 @@ export async function GET(request: Request) {
     `${BASE}/eleicao/eleicoes-anos`,
     `${BASE}/eleicao/listar/${ano}`,
     `${BASE}/eleicao/buscar/${uf}/${ano}`,
+    // Dados Abertos: se o CDN responder, dá para automatizar a importação
+    `https://cdn.tse.jus.br/estatistica/sead/odsele/consulta_cand/consulta_cand_${ano}_${uf}.zip`,
+    `https://dadosabertos.tse.jus.br/api/3/action/package_show?id=candidatos-${ano}`,
   ];
 
   // Se já soubermos o id da eleição, testa a listagem de candidatos

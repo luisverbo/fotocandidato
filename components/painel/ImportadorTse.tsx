@@ -113,13 +113,6 @@ export default function ImportadorTse() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-white">Cola Digital — dados do TSE</h1>
-      <p className="mt-2 max-w-2xl text-sm text-zinc-400">
-        Baixa a lista oficial de candidatos do TSE e grava no nosso banco. A
-        página pública <code className="text-zinc-300">/cola</code> consulta
-        daqui, sem depender do TSE na hora.
-      </p>
-
       <div className="mt-6 flex flex-wrap items-end gap-3">
         <label className="block">
           <span className="mb-1 block text-sm font-semibold text-zinc-400">
